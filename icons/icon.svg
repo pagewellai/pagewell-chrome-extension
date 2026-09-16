@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="179 189 940 940">
+  <!-- 与官网 favicon.svg 共用 Brand 画板里的 Handoff 图形，不加插件专用底板。 -->
+  <defs>
+    <linearGradient id="f" gradientUnits="userSpaceOnUse" x1="380" y1="250" x2="1040" y2="930">
+      <stop offset="0" stop-color="#4FBCAF"/><stop offset=".38" stop-color="#16A398"/>
+      <stop offset=".72" stop-color="#0B6B63"/><stop offset="1" stop-color="#075049"/>
+    </linearGradient>
+    <linearGradient id="r" gradientUnits="userSpaceOnUse" x1="260" y1="500" x2="770" y2="1050">
+      <stop offset="0" stop-color="#E4F0ED"/><stop offset=".5" stop-color="#B8E7E0"/>
+      <stop offset="1" stop-color="#78CFC5"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#r)" d="M255 651C255 607 280 569 318 548L500 456L760 545L760 885C760 929 735 965 695 981L374 1080C310 1099 255 1052 255 993Z"/>
+  <path fill="url(#f)" d="M403 318C403 273 435 238 477 238C488 238 498 240 510 244L994 408C1024 418 1043 447 1043 480L1043 640C1043 676 1023 708 991 722L493 935C448 954 403 922 403 878Z"/>
+</svg>

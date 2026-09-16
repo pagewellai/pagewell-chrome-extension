@@ -1,0 +1,1104 @@
+/* 阅读页样式。移动优先：默认布局就是窄屏的样子，宽屏靠 media query 加列。
+   没有构建步骤 —— 这份文件被 embed 进二进制，改完重启就生效。 */
+
+:root {
+  /* 令牌全部来自 docs/design/artboards（ReaderInline / ReaderSandbox / Mobile*）。
+     ⚠️ packages/theme/src/tokens.ts 有一份等价的 TS 版本。阅读页要能被 embed
+     进 Worker 二进制、零构建步骤，所以没法 import 它 —— 两处必须一起改。 */
+  --bg: #FBFCFA;
+  --surface: #FFFFFF;
+  --muted: #F2F5F1;
+  --fg: #101614;
+  --body: #3A4744;
+  --dim: #6B7A76;
+  --line: #E2E7E3;
+  --mark: #C9D2CC;
+  --ink-strong: #141A19; /* 深色轨与首屏深色块（tokens.ts 的 inkStrong）*/
+  --accent: #0B6B63;
+  --accent-dark: #075049;
+  --accent-light: #E4F0ED;
+  --accent-fg: #FFFFFF;
+  --warn-bg: #FBF1DA;
+  --warn-fg: #8A5F0F;
+  --warn-fg-dark: #6B4A0B;
+  --note-bg: #E4F0ED;
+  --code-bg: #F2F5F1;
+  --ok-fg: #2C6238;
+  --ok-bg: #E6F0E7;
+  --danger-fg: #9B382C;
+  --danger-bg: #F6E2DE;
+
+  /* 图表配色。源：docs/design/artboards/Charts.dc.html。
+     SVG 里一个色值都没有，全靠这八个变量 —— 所以同一份已经摄取好的 HTML
+     在浅色、深色、四套主题下都是对的，换配色不必重新摄取历史文档。 */
+  --pw-c0: #0B6B63; --pw-c1: #C08A2E; --pw-c2: #B05A48; --pw-c3: #3F7A52;
+  --pw-c4: #3F5E8C; --pw-c5: #8A5A93; --pw-c6: #4FBCAF; --pw-c7: #7C8A86;
+  --slice-ink: #FFFFFF;
+
+  /* 文档主题。源：docs/design/artboards/DocThemes.dc.html。
+     主题只改这几个变量加两三条结构规则 —— 版式的差别全在这里，
+     断点与 DOM 四套共用。 */
+  --doc-font: var(--font);
+  --doc-size: 1rem;
+  --doc-lead: 1.75;
+  --doc-measure: 120ch;
+  --doc-h-font: var(--font-head);
+  --doc-h3-font: var(--font-head);
+  --doc-h2-rule: 1px solid var(--line);
+  --doc-h2-bar: 0px;
+  --doc-code-radius: var(--radius-lg);
+  --doc-bleed: 0px;
+
+  /* v0.2 的令牌。声明在这里，取值由设计快照（每篇文档一份内联 CSS）覆盖。
+     声明与取值分开，是因为**读路径不查模板库**：一篇文档打开时，
+     它的令牌值来自自己那份快照，而默认值必须在这里等着 —— 否则
+     一篇没有快照的老文档会拿到一堆 var() 求值失败的空值。 */
+  --doc-radius: 8px;
+  --doc-rhythm: 1;
+  --doc-h2-size: 1.35em;
+  --doc-h2-align: start;
+
+  --radius: 4px;
+  --radius-md: 5px;
+  --radius-lg: 6px;
+  --w-nav: 264px;
+  --w-toc: 226px;
+  --h-top: 54px;
+  /* 两种留白（Viewer* / Reader* 画板）：
+     --edge 是页面的边 —— 顶栏两头、页内目录的右侧，贴着窗口，小一点；
+     --gutter 是正文栏两侧的空白，跟窗口走，1280 上 128、1920 上 192、再宽到 240 为止。
+     窄屏（<900）两个都收到 16。 */
+  --edge: 16px;
+  --gutter: 16px;
+
+  /* 品牌标记 Handoff 的两条渐变。设计源 docs/design/artboards/Brand.dc.html。
+     走变量是为了让浅底、深底、深色首屏共用同一份 SVG 模板（base.gohtml 的 brandmark）。
+     ⚠️ 换底色时**两块面板一起换一档**：后面板离地一档、前面板离地两档。
+     只换前面板的话，后面那块会比前面那块还亮，深度直接读反。 */
+  --mark-f0: #4FBCAF; --mark-f1: #16A398; --mark-f2: #0B6B63; --mark-f3: #075049;
+  --mark-r0: #E4F0ED; --mark-r1: #B8E7E0; --mark-r2: #78CFC5;
+
+
+  --font: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", system-ui, -apple-system, sans-serif;
+  --font-head: "Source Serif 4", "Noto Serif SC", Georgia, "Songti SC", serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* 页内目录那根细轨。浅色用普通细线；深色里 --line 与底色几乎同色，轨会消失，
+     当前一节那段主色就像悬在空中，所以深色换 --mark（ReaderOutline 画板深色那块）。 */
+  --toc-rail: var(--line);
+}
+
+/* 设计稿只画了浅色。深色是**额外**加的 —— 阅读页是公开阅读的表面，
+   夜里读的人是真实存在的。色值由浅色那套推导，保持同一个色相。 */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141A19;
+    --surface: #1A2220;
+    --muted: #202826;
+    --fg: #E3EAE6;
+    --body: #B4C0BB;
+    --dim: #849490;
+    --line: #273130;
+    --mark: #3A4744;
+    --accent: #4FBCAF;
+    --accent-dark: #7FD5C9;
+    --accent-light: #1F2A28;
+    --accent-fg: #10221D;
+    --warn-bg: #33280D;
+    --warn-fg: #F0D79A;
+    --warn-fg-dark: #F0D79A;
+    --note-bg: #1F2A28;
+    --code-bg: #202826;
+    --ok-fg: #8FCB9B;
+    --ok-bg: #1B2A1F;
+    --danger-fg: #E9A79C;
+    --danger-bg: #2E1C19;
+    --mark-f0: #B8E7E0; --mark-f1: #7FD5C9; --mark-f2: #4FBCAF; --mark-f3: #2A8A80;
+    --mark-r0: #075049; --mark-r1: #0B6B63; --mark-r2: #16A398;
+    --pw-c0: #4FBCAF; --pw-c1: #E0AE5A; --pw-c2: #D98A76; --pw-c3: #6FA97F;
+    --pw-c4: #7E9BD1; --pw-c5: #C08FCA; --pw-c6: #7FD5C9; --pw-c7: #A7B4B0;
+    --slice-ink: #101614;
+    --toc-rail: var(--mark);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141A19; --surface: #1A2220; --muted: #202826;
+  --fg: #E3EAE6; --body: #B4C0BB; --dim: #849490;
+  --line: #273130; --mark: #3A4744;
+  --accent: #4FBCAF; --accent-dark: #7FD5C9; --accent-light: #1F2A28; --accent-fg: #10221D;
+  --warn-bg: #33280D; --warn-fg: #F0D79A; --warn-fg-dark: #F0D79A;
+  --note-bg: #1F2A28; --code-bg: #202826;
+  --ok-fg: #8FCB9B; --ok-bg: #1B2A1F; --danger-fg: #E9A79C; --danger-bg: #2E1C19;
+  --mark-f0: #B8E7E0; --mark-f1: #7FD5C9; --mark-f2: #4FBCAF; --mark-f3: #2A8A80;
+  --mark-r0: #075049; --mark-r1: #0B6B63; --mark-r2: #16A398;
+  --pw-c0: #4FBCAF; --pw-c1: #E0AE5A; --pw-c2: #D98A76; --pw-c3: #6FA97F;
+  --pw-c4: #7E9BD1; --pw-c5: #C08FCA; --pw-c6: #7FD5C9; --pw-c7: #A7B4B0;
+  --slice-ink: #101614;
+  --toc-rail: var(--mark);
+}
+
+/* 选了明暗之后也要告诉浏览器：滚动条、表单控件、默认 canvas 是浏览器画的，
+   它们只看 color-scheme，不看我们的变量。<meta color-scheme> 写的是
+   「两种都支持」，读者选了哪一种得在这里说死。 */
+:root[data-theme="dark"] { color-scheme: dark; }
+:root[data-theme="light"] { color-scheme: light; }
+
+/* 深色区块里的标记（首屏那种：底是深的，但页面本身是浅色方案）。 */
+.pw-on-dark {
+  --mark-f0: #B8E7E0; --mark-f1: #7FD5C9; --mark-f2: #4FBCAF; --mark-f3: #2A8A80;
+  --mark-r0: #075049; --mark-r1: #0B6B63; --mark-r2: #16A398;
+}
+
+/* 尺寸写在这里而不是 SVG 上：这块跟着版式走。
+   <= 20px 换 brandmark-sm（另一份画），别把完整版缩到这个尺寸。 */
+.pw-mark { width: 22px; height: 22px; flex-shrink: 0; display: block; }
+.pw-mark-sm { width: 18px; height: 18px; }
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font-family: var(--font); font-size: 15px; line-height: 1.75;
+  -webkit-font-smoothing: antialiased;
+}
+/* ReaderDirect 画板：短文档也占满一屏，页脚贴着视口底边；正文变长时外壳随内容
+   自然长高，页脚仍在正文之后，不用 fixed 覆盖内容。嵌入预览没有页脚，不参与这条布局。 */
+.pw-reader:not(.is-embedded) {
+  display: flex; min-height: 100dvh; flex-direction: column;
+}
+.pw-reader:not(.is-embedded) > .pw-shell { flex: 1 0 auto; width: 100%; }
+.pw-reader:not(.is-embedded) > .pw-foot { flex-shrink: 0; }
+h1, h2, h3, h4 { font-family: var(--font-head); font-weight: 700; text-wrap: balance; }
+a { color: var(--accent); }
+img, video, canvas, svg { max-width: 100%; height: auto; }
+
+.pw-skip { position: absolute; left: -9999px; }
+.pw-skip:focus { left: 8px; top: 8px; background: var(--surface); padding: 8px 12px; z-index: 20; }
+
+/* ---- 顶栏 ---- */
+.pw-top {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; align-items: center; gap: 12px;
+  min-height: var(--h-top);
+  padding: 8px var(--edge); padding-top: max(8px, env(safe-area-inset-top));
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: saturate(180%) blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+/* 顶栏：品牌 · 分隔 · 标题块。设计稿把「谁分享的、什么时候更新的」
+   放在标题下面一行 —— 访客判断一份内容值不值得读，先看的是这两件事。 */
+.pw-brand-mark {
+  display: flex; align-items: center; gap: 9px; flex-shrink: 0;
+  color: var(--accent); text-decoration: none;
+}
+.pw-brand-mark span {
+  font-family: var(--font-head); font-weight: 700; font-size: 15px; color: var(--fg);
+}
+.pw-sep { width: 1px; height: 20px; background: var(--line); flex-shrink: 0; }
+.pw-titleblock { display: flex; flex-direction: column; min-width: 0; flex-grow: 1; }
+.pw-space {
+  font-size: 13.5px; font-weight: 500; text-decoration: none; color: var(--fg);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pw-submeta {
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--mono); font-size: 11px; color: var(--dim);
+  overflow: hidden; white-space: nowrap;
+}
+/* 作者芯片（ReaderInline.dc.html 顶栏）：16px 头像或首字母 + 名字。
+   开了个人主页时是链接（主色），否则只是文字 —— 两种形态同一副样子，差别只有颜色。 */
+.pw-author { display: inline-flex; align-items: center; gap: 6px; min-width: 0; color: var(--dim); text-decoration: none; }
+a.pw-author { color: var(--accent); }
+a.pw-author:hover { text-decoration: underline; }
+.pw-author > span:last-child { overflow: hidden; text-overflow: ellipsis; }
+.pw-author-img { width: 16px; height: 16px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.pw-author-i {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 16px; height: 16px; border-radius: 50%; background: var(--accent); color: var(--accent-fg);
+  font-family: var(--font); font-size: 9.5px; font-weight: 500;
+}
+.pw-actions { margin-inline-start: auto; display: flex; gap: 8px; align-items: center; }
+
+/* 散文停在行长里；其余撑到栏边。只挑直接子元素：组件（.pw-c）里的段落由组件自己排。
+   只有一张图的段落（Markdown 的 ![图] 会被包成 <p>）不算散文 —— 图要撑到栏边。 */
+.pw-body > :is(p, ul, ol, dl, blockquote):not(:has(> img:only-child)) { max-width: var(--doc-measure); }
+
+/* 汉堡按钮只在窄屏出现 */
+.pw-menu {
+  display: grid; gap: 4px; width: 34px; height: 34px; padding: 8px;
+  background: none; border: 1px solid var(--line); border-radius: var(--radius); cursor: pointer;
+}
+.pw-menu span { display: block; height: 2px; background: var(--fg); border-radius: 2px; }
+
+.pw-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 36px; padding: 6px 12px; border: 1px solid var(--line);
+  border-radius: var(--radius); background: var(--surface); color: var(--fg);
+  font: inherit; font-size: 14px; text-decoration: none; cursor: pointer;
+  white-space: nowrap;
+}
+.pw-btn:hover { border-color: var(--accent); }
+.pw-btn-primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+
+/* 表单提交后的等待态。site.js 在 submit 时给 <form> 标 aria-busy、禁掉提交键、
+   把按钮文字换成 data-busy-label，并在前面塞一枚 .pw-spin。
+   没有 JS 时什么都不发生 —— 表单照常提交，只是没有这层反馈。
+   spinner 用 currentColor：深色按钮上是白圈，文字按钮上是链接色，不用为每种按钮各写一份。 */
+form[aria-busy="true"] button, form[aria-busy="true"] input[type="submit"] {
+  cursor: progress; opacity: .75; pointer-events: none;
+}
+.pw-spin {
+  display: inline-block; width: 14px; height: 14px; flex-shrink: 0;
+  margin-inline-end: 8px; vertical-align: -2px; box-sizing: border-box;
+  border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%;
+  opacity: .9; animation: pw-spin .7s linear infinite;
+}
+@keyframes pw-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .pw-spin { animation: none; border-right-color: currentColor; opacity: .5; }
+}
+
+/* ⋯ 菜单（ReaderInline 画板）：顶栏右侧只留主动作和这一枚。<details> 开合不靠脚本；
+   里面是分组的动作行（复制三种 / 打印 / 下载 / 看原文 / 阅读偏好），reader.js 只负责点外面关。 */
+.pw-copy, .pw-more { position: relative; }
+.pw-copy > summary, .pw-more > summary { list-style: none; }
+.pw-copy > summary::-webkit-details-marker, .pw-more > summary::-webkit-details-marker { display: none; }
+.pw-btn-icon { min-width: 36px; padding: 6px; }
+.pw-more[open] > summary { border-color: var(--accent); background: var(--accent-light); color: var(--accent-dark); }
+.pw-menu-pop {
+  position: absolute; inset-inline-end: 0; top: calc(100% + 6px); z-index: 12;
+  display: grid; min-width: 190px; padding: 6px;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: 0 8px 28px rgba(0,0,0,.12);
+}
+.pw-menu-pop button, .pw-menu-pop a {
+  text-align: start; padding: 8px 10px; border: 0; border-radius: 6px;
+  background: none; color: inherit; font: inherit; font-size: 13.5px; cursor: pointer; text-decoration: none;
+}
+.pw-menu-pop button:hover, .pw-menu-pop a:hover { background: var(--code-bg); }
+.pw-more-pop { min-width: 250px; }
+.pw-more-label {
+  margin: 0; padding: 6px 10px 2px; font-family: var(--mono); font-size: 10px;
+  letter-spacing: .14em; text-transform: uppercase; color: var(--dim);
+}
+.pw-more-sep { border: 0; border-top: 1px solid var(--line); margin: 6px 4px; }
+/* 菜单里的偏好开关：整行、带文字，不再是图标 */
+.pw-prefs.is-menu { display: grid; gap: 0; }
+.pw-prefs.is-menu button {
+  display: flex; align-items: center; gap: 10px; justify-content: flex-start;
+  min-block-size: 0; padding: 8px 10px; border: 0; border-radius: 6px; color: inherit; font-size: 13.5px;
+}
+.pw-prefs.is-menu button:hover { background: var(--code-bg); border: 0; color: inherit; }
+.pw-prefs.is-menu button[aria-pressed="true"] { border: 0; color: var(--accent-dark); }
+.pw-prefs.is-menu svg { color: var(--dim); }
+
+/* ---- 布局 ----
+   窄屏：单列，侧栏是抽屉。宽屏：目录树 + 正文 + 页内目录三列。
+
+   版心（ReaderInline / ReaderWide / Viewer* 画板，2026-09-15）：外壳用整个窗口，最宽 1920 —— 再宽
+   就居中，「用得上这块屏」不是「把字铺到 4K 的两端」。正文栏从这一列的左边开始，**不居中**；
+   散文（段落、列表、引用）停在模板定的行长（measure 令牌，默认 120ch），标题的横线、代码块、
+   表格、图、组件撑到栏边，撑不下才在自己的框里横滚。以前把整个正文栏卡在行长里并居中，
+   一屏 2000px 只用得上 640 —— 而且一张宽表格会在那 640 里被裁掉。 */
+.pw-shell { display: block; max-width: 1920px; margin: 0 auto; }
+
+.pw-nav {
+  display: none;
+  padding: 20px 14px; border-bottom: 1px solid var(--line); background: var(--bg);
+}
+.pw-nav.is-open { display: block; }
+.pw-tree { list-style: none; margin: 0; padding: 0; }
+.pw-tree-item { padding-inline-start: calc(var(--d, 0) * 14px); }
+.pw-tree-head {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--dim); padding: 0 10px 10px; margin: 0;
+}
+.pw-tree-item > a, .pw-tree-label {
+  display: block; padding: 7px 10px; border-radius: var(--radius);
+  color: var(--body); text-decoration: none; font-size: 13.5px;
+}
+.pw-tree-item > a:hover { background: var(--code-bg); }
+.pw-tree-item.is-active > a { background: var(--accent-light); color: var(--accent-dark); font-weight: 500; }
+.pw-tree-label { color: var(--dim); font-size: 13.5px; }
+
+.pw-main { padding: 20px 16px 56px; min-width: 0; }
+.pw-title { margin: 6px 0 8px; font-size: clamp(23px, 5vw, 30px); line-height: 1.28; }
+.pw-meta { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 20px;
+  color: var(--dim); font-size: 13.5px; }
+.pw-tag { font-family: var(--mono); font-size: 11px; padding: 2px 8px;
+  background: var(--code-bg); border-radius: 3px; }
+
+.pw-body {
+  overflow-wrap: anywhere;
+  font-family: var(--doc-font); font-size: var(--doc-size); line-height: var(--doc-lead);
+}
+.pw-body h1, .pw-body h2, .pw-body h3 {
+  line-height: 1.3; margin-top: 1.8em; font-family: var(--doc-h-font);
+}
+.pw-body h3, .pw-body h4 { font-family: var(--doc-h3-font); }
+.pw-body h2 {
+  font-size: 1.38em; padding-bottom: .25em; border-bottom: var(--doc-h2-rule);
+  border-inline-start: var(--doc-h2-bar) solid var(--accent);
+  padding-inline-start: var(--doc-h2-bar);
+}
+.pw-body p, .pw-body li { font-size: var(--doc-size); }
+.pw-body pre {
+  padding: 14px; overflow-x: auto;   /* 宽代码在自己的容器里横向滚动，页面本身永不横滚 */
+  background: var(--code-bg); border-radius: var(--doc-code-radius);
+  font-family: var(--mono); font-size: 13.5px; line-height: 1.55;
+  /* reference 主题让代码块贴边：查手册时代码是主角，不该被正文的量度框住 */
+  margin-inline: calc(var(--doc-bleed) * -1); padding-inline: calc(14px + var(--doc-bleed));
+}
+.pw-body code { font-family: var(--mono); font-size: .92em; }
+.pw-body :not(pre) > code { padding: 1px 5px; background: var(--code-bg); border-radius: 4px; }
+.pw-body blockquote {
+  margin: 1.2em 0; padding: 2px 16px; border-inline-start: 3px solid var(--line); color: var(--dim);
+}
+.pw-body table { display: block; width: 100%; overflow-x: auto; border-collapse: collapse; }
+.pw-body th, .pw-body td { padding: 8px 12px; border: 1px solid var(--line); text-align: start; }
+.pw-body th { background: var(--code-bg); }
+
+/* 沙箱 */
+.pw-sandbox-note, .pw-sandbox-warn, .pw-dev {
+  margin: 0 0 14px; padding: 10px 14px; border-radius: var(--radius); font-size: 14px;
+}
+.pw-sandbox-note { background: var(--note-bg); color: var(--fg); }
+.pw-sandbox-warn, .pw-dev { background: var(--warn-bg); color: var(--warn-fg); }
+.pw-dev { margin: 10px 14px; }
+/* 制品页（ReaderSandbox 画板）：内容区只有那份内容 —— 铺满这一列，没有文章边距、没有边框盒。
+   iframe 默认一屏高；沙箱那边报了高度之后由 reader.js 设成内容的实际高度（.is-sized），
+   于是内容区自己不出垂直滚动条。 */
+.pw-main.is-frame { padding: 0; }
+.pw-main.is-frame .pw-sandbox-warn { margin: 12px 16px; }
+/* 制品页的外壳不受模板版式的行长约束（single 版式把外壳收到 1040px）：那份内容要整列的宽。 */
+body.is-artifact .pw-shell { max-width: none; }
+.pw-frame-wrap { position: relative; background: var(--bg); }
+.pw-frame { display: block; width: 100%; height: calc(100dvh - var(--h-top)); min-height: 320px; border: 0; }
+.pw-main.is-frame .pw-backlinks, .pw-main.is-frame .pw-pager { padding-inline: 16px; }
+/* 全屏：原生 Fullscreen API 下那一块自己就是整块屏幕；兜底（iOS Safari）用固定定位铺满。 */
+.pw-frame-wrap:fullscreen { background: var(--bg); }
+.pw-frame-wrap:fullscreen .pw-frame { height: 100% !important; min-height: 0; }
+html.is-fullscreen, html.is-fullscreen body { overflow: hidden; }
+html.is-fullscreen .pw-frame-wrap { position: fixed; inset: 0; z-index: 100; background: var(--bg); }
+html.is-fullscreen .pw-frame { height: 100% !important; min-height: 0; }
+.pw-fs-exit {
+  position: absolute; top: 14px; right: 14px; z-index: 1;
+  display: inline-flex; align-items: center; height: 30px; padding: 0 11px; border: 0; border-radius: 15px;
+  background: color-mix(in srgb, var(--fg) 72%, transparent); color: var(--bg);
+  font: inherit; font-size: 12px; cursor: pointer; backdrop-filter: blur(6px);
+}
+/* 顶栏里的制品标题与那枚 Sandboxed 小标 */
+.pw-doctitle { cursor: default; }
+.pw-space-link { color: var(--accent); text-decoration: none; }
+.pw-space-link:hover { text-decoration: underline; }
+.pw-sandbox-chip {
+  display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px; border-radius: 3px;
+  background: var(--warn-bg); color: var(--warn-fg); font-family: var(--font); font-size: 11px; cursor: help;
+}
+
+.pw-backlinks { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--line); }
+.pw-backlinks h2 { font-size: 15px; color: var(--dim); margin: 0 0 8px; }
+.pw-backlinks ul { margin: 0; padding-inline-start: 18px; }
+
+.pw-pager { display: flex; gap: 12px; justify-content: space-between; margin-top: 36px; }
+.pw-pager a {
+  flex: 1 1 0; min-width: 0; padding: 12px 14px; border: 1px solid var(--line);
+  border-radius: var(--radius); text-decoration: none; color: var(--fg); font-size: 14.5px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pw-next { text-align: end; }
+
+/* 页内目录（ReaderOutline 画板）：一根连续的 1px 细轨，条目挂在轨上；当前一节是
+   盖在轨上的一段 2px 主色。编号（Heading.Num）排成等宽的一栏，文字换行时挂在编号
+   右边而不是绕到它下面。三级缩进 14、变暗；四级以下再缩 14。 */
+.pw-toc { display: none; }
+.pw-toc-h { margin: 0 0 12px; font-family: var(--mono); font-size: 10.5px;
+  text-transform: uppercase; letter-spacing: .14em; color: var(--dim); }
+.pw-toc ol { list-style: none; margin: 0; padding: 0; border-inline-start: 1px solid var(--toc-rail); }
+.pw-toc a {
+  display: flex; gap: 8px; align-items: baseline;
+  margin-inline-start: -1px; padding: 5px 0 5px 13px; border-inline-start: 2px solid transparent;
+  color: var(--body); text-decoration: none; font-size: 13px; line-height: 1.45;
+}
+.pw-toc a:hover { color: var(--fg); }
+/* 键盘焦点是一圈光晕（和插件 popup 的主按钮同一套）；鼠标点不出框 */
+.pw-toc a:focus-visible { outline: none; border-radius: 3px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); }
+.pw-toc a.is-current { border-inline-start-color: var(--accent); color: var(--accent-dark); font-weight: 500; }
+.pw-toc-n { flex: none; min-width: 2ch; font-family: var(--mono); font-size: 11px; font-weight: 400;
+  font-variant-numeric: tabular-nums; color: var(--dim); }
+.pw-toc a.is-current .pw-toc-n { color: var(--accent); }
+.pw-toc-t { min-width: 0; }
+.pw-toc-l3 a { padding-inline-start: 27px; color: var(--dim); }
+.pw-toc-l4 a, .pw-toc-l5 a, .pw-toc-l6 a { padding-inline-start: 41px; color: var(--dim); }
+/* 有编号的目录里，下级条目对齐上级的文字（编号栏 2ch + 8 间距），不比上级的文字还靠左 */
+.pw-toc ol:has(.pw-toc-n) .pw-toc-l3 a { padding-inline-start: 34px; }
+.pw-toc ol:has(.pw-toc-n) :is(.pw-toc-l4, .pw-toc-l5, .pw-toc-l6) a { padding-inline-start: 48px; }
+/* 点目录（或带 #锚 打开）时标题停在顶栏下方 16px，不被顶栏盖住 */
+.pw-body :is(h1, h2, h3, h4, h5, h6) { scroll-margin-top: calc(var(--h-top) + 16px); }
+
+.pw-foot {
+  display: flex; gap: 12px; align-items: center; justify-content: center;
+  padding: 24px 16px; padding-bottom: max(24px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line); color: var(--dim); font-size: 13px;
+}
+.pw-brand { text-decoration: none; font-weight: 600; }
+.pw-dim { color: var(--dim); }
+/* 页脚里的 Report 与它前面那个点：和品牌、年份同一行（ReaderInline 画板） */
+.pw-foot .pw-report { color: var(--dim); }
+.pw-foot-sep { color: var(--mark); }
+
+/* ---- 居中卡片（分享码 / 密码 / 错误 / 设备码） ---- */
+.pw-centered { display: grid; place-items: center; min-height: 100dvh; padding: 20px; }
+.pw-card {
+  width: 100%; max-width: 380px; padding: 32px 28px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+}
+.pw-card h1 { margin: 0 0 14px; font-size: 20px; }
+.pw-card label { display: block; margin-bottom: 6px; font-size: 14px; color: var(--dim); }
+.pw-card input {
+  width: 100%; min-height: 46px; padding: 10px 12px; margin-bottom: 10px;
+  background: var(--bg); color: var(--fg);
+  border: 1px solid var(--line); border-radius: var(--radius);
+  font: inherit; font-size: 16px;  /* 16px 以下 iOS Safari 会在聚焦时放大页面 */
+  font-family: var(--mono); letter-spacing: .06em;
+}
+.pw-card .pw-btn { width: 100%; min-height: 46px; }
+.pw-hint { margin: 0 0 14px; color: var(--dim); font-size: 13px; }
+.pw-error { padding: 10px 12px; margin-bottom: 12px; background: var(--warn-bg);
+  color: var(--warn-fg); border-radius: var(--radius); font-size: 14px; }
+
+/* ---- 个人主页 ---- */
+.pw-phead { max-width: 720px; margin: 0 auto; padding: 40px 20px 12px; }
+.pw-phead h1 { margin: 0; font-size: 28px; }
+.pw-handle { margin: 2px 0 10px; color: var(--dim); font-family: var(--mono); }
+.pw-plist { max-width: 720px; margin: 0 auto; padding: 0 20px 60px; }
+.pw-pitem { padding: 18px 0; border-top: 1px solid var(--line); }
+.pw-pitem h2 { margin: 0 0 4px; font-size: 18px; }
+.pw-pitem h2 a { text-decoration: none; }
+.pw-empty { padding: 40px 0; color: var(--dim); text-align: center; }
+
+/* ---- 宽屏 ---- */
+@media (max-width: 560px) {
+  .pw-brand-mark span, .pw-sep, .pw-submeta { display: none; }
+}
+
+@media (min-width: 900px) {
+  /* 目录栏的右侧贴着窗口边（--edge），栏宽跟着长一点，链接那 206px 不变。 */
+  :root { --edge: clamp(16px, 2vw, 40px); --gutter: clamp(64px, 10vw, 240px); --w-toc: calc(229px + var(--edge)); }
+  .pw-menu { display: none; }
+  .pw-shell {
+    display: grid; gap: 0;
+    grid-template-columns: var(--w-nav) minmax(0, 1fr);
+  }
+  .pw-nav {
+    display: block; position: sticky; top: var(--h-top); align-self: start;
+    max-height: calc(100dvh - var(--h-top)); overflow-y: auto;
+    border-bottom: 0; border-inline-end: 1px solid var(--line);
+  }
+  .pw-main { padding: 28px var(--gutter) 80px; }
+  /* 沙箱里跑的制品（.pw-main.is-frame）没有正文栏：整列都是它的。 */
+  .pw-main.is-frame { padding: 0; }
+  .pw-main.is-frame .pw-sandbox-warn { margin: 12px var(--gutter); }
+}
+@media (min-width: 1240px) {
+  .pw-shell { grid-template-columns: var(--w-nav) minmax(0, 1fr) var(--w-toc); }
+  /* 目录栏：一根贯穿整栏的分栏线 + 22px 内边距（ReaderWide / ReaderInline 画板），
+     里面那层才是钉住的 —— 钉在 aside 自己身上的话它只有内容那么高，分栏线也只到那里。 */
+  .pw-toc {
+    display: block; align-self: stretch;
+    border-inline-start: 1px solid var(--line); padding: 0 var(--edge) 0 22px;
+  }
+  .pw-toc-in {
+    position: sticky; top: var(--h-top);
+    max-height: calc(100dvh - var(--h-top)); overflow-y: auto; padding: 28px 0;
+  }
+}
+
+/* callout（> [!NOTE] 那一族）。
+   摄取管线早就在 blockquote 上挂了 pw-callout 与 data-callout，但一直没人
+   给它上色 —— 于是页面上它和普通引用长得一模一样，而作者写 [!WARNING]
+   的时候是**指望它显眼**的。标签用 ::before 读 data-callout 生成，
+   这也是消毒器特意放行那个属性的原因。 */
+.pw-body .pw-callout {
+  margin: 1.3em 0; padding: 10px 14px;
+  border-inline-start: 3px solid var(--accent);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: var(--note-bg); color: var(--body);
+}
+.pw-body .pw-callout > :first-child { margin-top: 0; }
+.pw-body .pw-callout > :last-child { margin-bottom: 0; }
+.pw-body .pw-callout::before {
+  content: attr(data-callout);
+  display: block; margin-bottom: 4px;
+  font-family: var(--mono); font-size: 10.5px; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--accent-dark);
+}
+.pw-body .pw-callout-tip { border-color: var(--ok-fg); background: var(--ok-bg); }
+.pw-body .pw-callout-tip::before { color: var(--ok-fg); }
+.pw-body .pw-callout-warning { border-color: var(--warn-fg); background: var(--warn-bg); }
+.pw-body .pw-callout-warning::before { color: var(--warn-fg-dark); }
+.pw-body .pw-callout-caution { border-color: var(--danger-fg); background: var(--danger-bg); }
+.pw-body .pw-callout-caution::before { color: var(--danger-fg); }
+
+/* ---- 图表 ----
+   源：docs/design/artboards/Charts.dc.html（那块画板里有这一段的原文）。
+   几何由 render/chart_svg.go 算，SVG 里没有任何颜色 —— 全在这里。 */
+.pw-chart { margin: 1.6em 0; }
+.pw-chart .pw-s0 { --c: var(--pw-c0); } .pw-chart .pw-s1 { --c: var(--pw-c1); }
+.pw-chart .pw-s2 { --c: var(--pw-c2); } .pw-chart .pw-s3 { --c: var(--pw-c3); }
+.pw-chart .pw-s4 { --c: var(--pw-c4); } .pw-chart .pw-s5 { --c: var(--pw-c5); }
+.pw-chart .pw-s6 { --c: var(--pw-c6); } .pw-chart .pw-s7 { --c: var(--pw-c7); }
+
+.pw-chart svg  { width: 100%; height: auto; display: block; }
+.pw-chart text { font-family: var(--font); font-size: 11px; fill: var(--dim); }
+.pw-grid  { stroke: var(--line); stroke-width: 1; }
+.pw-axis  { stroke: var(--mark); stroke-width: 1; }
+.pw-zero  { stroke: var(--dim); stroke-width: 1; stroke-dasharray: 3 3; }
+.pw-bar, .pw-slice, .pw-dot, .pw-swatch { fill: var(--c); }
+.pw-line  { fill: none; stroke: var(--c); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.pw-area  { fill: var(--c); opacity: .18; stroke: none; }
+.pw-band  { fill: var(--c); opacity: .42; stroke: none; }
+/* 扇区上的百分比压在扇区颜色上，所以它跟着**配色的明暗**走而不是跟着主题：
+   浅色下扇区是深色，字要白；深色下配色整体调亮，白字就没对比度了。
+   ⚠️ 选择器必须带 .pw-chart 前缀：上面的 `.pw-chart text` 是 (0,1,1)，
+   光写 `.pw-slice-label` 是 (0,1,0)，会被压掉 —— 而压掉之后标签变成 --dim，
+   看起来只是「有点淡」，不像坏了。 */
+.pw-chart .pw-slice-label { fill: var(--slice-ink); font-weight: 600; }
+.pw-chart .pw-donut-center { fill: var(--fg); font-size: 13px; font-weight: 600; }
+
+.pw-chart figcaption {
+  margin-top: 8px; color: var(--dim); font-size: 13.5px; text-align: center;
+}
+/* 数据表：图表能被搜索引擎与 llms.txt 读到的唯一途径，所以它一直在 DOM 里，
+   只是默认折起来。别改成 display:none —— 那会连爬虫一起挡掉。 */
+.pw-chart-data { margin-top: 8px; font-size: 13px; }
+.pw-chart-data summary {
+  color: var(--dim); cursor: pointer; font-family: var(--mono); font-size: 11px;
+  letter-spacing: .1em; text-transform: uppercase;
+}
+.pw-chart-data table { margin-top: 8px; }
+.pw-block-bad {
+  padding: 12px 14px; border: 1px dashed var(--dangerLine, var(--mark));
+  border-radius: var(--radius); background: var(--muted);
+}
+.pw-block-err { margin: 0; color: var(--warn-fg-dark); font-family: var(--mono); font-size: 12.5px; }
+
+/* 宽窄两版：640 的 viewBox 缩到手机宽度只剩 0.51 倍，11px 轴标签落地是 5.6px。
+   一份 SVG 做不到「图缩小、字不缩」，因为布局是按字宽算的。 */
+.pw-chart .pw-narrow { display: none; }
+@media (max-width: 559px) {
+  .pw-chart .pw-wide { display: none; }
+  .pw-chart .pw-narrow { display: block; }
+}
+
+/* ---- 文档主题 ----
+   源：docs/design/artboards/DocThemes.dc.html。
+   主题只改外观，不改结构：同一份摄取好的 HTML 在四套下都成立，
+   换主题不需要重新摄取。断点与 DOM 四套共用 —— 主题决定版式，不决定断点。 */
+
+[data-doc-theme="whitepaper"] {
+  --doc-font: var(--font-head);
+  --doc-size: 1.06rem;
+  --doc-lead: 1.9;
+  --doc-measure: 62ch;
+  --doc-h2-rule: 0;
+}
+[data-doc-theme="reference"] {
+  --doc-size: .88rem;
+  --doc-lead: 1.6;
+  --doc-measure: 88ch;
+  --doc-h-font: var(--font);
+  --doc-h3-font: var(--mono);
+  --doc-h2-rule: 0;
+  --doc-h2-bar: 3px;
+  --doc-code-radius: 0px;
+  --doc-bleed: 14px;
+  --w-nav: 240px;
+  --w-toc: 200px;
+}
+[data-doc-theme="note"] {
+  --doc-lead: 1.8;
+  --doc-measure: 60ch;
+  --doc-h-font: var(--font);
+  --doc-h3-font: var(--font);
+  --doc-h2-rule: 0;
+}
+/* reference 的表格是主角：贴边、条纹、收紧 */
+[data-doc-theme="reference"] .pw-body th,
+[data-doc-theme="reference"] .pw-body td { padding: 6px 10px; }
+[data-doc-theme="reference"] .pw-body tbody tr:nth-child(even) { background: var(--muted); }
+
+/* 结构规则挂在 data-doc-layout 上，不挂在主题名上。
+   两者是不同的东西：主题决定**长什么样**（字体、行距、量度），
+   版式决定**有几列**。分开之后，市场里一个新模板写 layout: single
+   就能拿到和 whitepaper 一样的骨架，不必等我们在这里补一条选择器 ——
+   而「新模板的排版要改 reader.css 才生效」等于模板市场根本没有市场。
+   内建四套通过 render.AttrsFor 同时输出这两个属性，行为与以前一字不差。 */
+@media (min-width: 900px) {
+  /* single：单栏，目录收进抽屉（长文仍然需要跳转）。 */
+  [data-doc-layout="single"] .pw-shell { grid-template-columns: minmax(0, 1fr); max-width: 1040px; }
+  [data-doc-layout="single"] .pw-nav { display: none; }
+  [data-doc-layout="single"] .pw-nav.is-open {
+    display: block; position: static; max-height: none;
+    border-inline-end: 0; border-bottom: 1px solid var(--line);
+  }
+  [data-doc-layout="single"] .pw-menu { display: grid; }
+  [data-doc-layout="single"] .pw-toc { display: none; }
+  /* note 连抽屉都不给 —— 它按定义就是不属于任何树的单篇。
+     这条是**主题**的差别，不是版式的，所以留在主题选择器上。 */
+  [data-doc-theme="note"] .pw-menu { display: none; }
+}
+@media (min-width: 1240px) {
+  [data-doc-layout="single"] .pw-shell { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* is-solo：单独公开的一篇或 doc scope 直链。没有树，所以外壳少掉左边那一栏 ——
+   模板连 nav 都不渲染，这里只负责让栅格别给它留位。目录（右栏）照旧。 */
+@media (min-width: 900px) {
+  .pw-shell.is-solo { grid-template-columns: minmax(0, 1fr); }
+}
+@media (min-width: 1240px) {
+  .pw-shell.is-solo { grid-template-columns: minmax(0, 1fr) var(--w-toc); }
+  [data-doc-layout="single"] .pw-shell.is-solo { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ---- 简历（```resume）----
+   沿用 DocThemes / ReaderInline 的既有设计词汇：这里**一个新色值都没有**，
+   全是已有变量，所以浅色、深色、四套版式下都自动是对的
+   （画板补齐的处理方式见 docs/design/README.md「待补的画板」）。
+
+   ⚠️ 类名与 render/resume.go 吐的 HTML 一一对应。消毒器会丢掉
+   <header>/<footer>/<main>，所以那边用的是 div —— 换标签之前先看
+   resume_test.go 里那条盯着消毒器的测试。 */
+.pw-resume { margin: 1.4em 0; }
+.pw-resume-head {
+  margin-bottom: 18px; padding-bottom: 12px; border-bottom: 2px solid var(--accent);
+}
+.pw-resume-name {
+  margin: 0; font-family: var(--doc-h-font); font-size: 1.9em;
+  line-height: 1.15; font-weight: 600; color: var(--fg);
+}
+.pw-resume-title { margin: 4px 0 0; font-size: 1.05em; color: var(--accent-dark); }
+.pw-resume-contact {
+  display: flex; flex-wrap: wrap; gap: 3px 16px;
+  margin: 10px 0 0; font-size: .88em; color: var(--dim);
+}
+.pw-resume-summary { margin: 0 0 1.4em; color: var(--body); }
+/* 侧栏只在有内容且屏幕够宽时才成为一列。resume.go 在没有侧栏时
+   根本不输出 .pw-resume-cols —— 空列会让主栏无缘无故窄一截。 */
+.pw-resume-cols { display: grid; gap: 0 32px; }
+@media (min-width: 720px) {
+  .pw-resume-cols { grid-template-columns: minmax(0, 1fr) 208px; }
+}
+.pw-resume-sec { margin: 0 0 1.4em; }
+.pw-resume .pw-resume-sec > h2 {
+  margin: 0 0 .7em; padding: 0 0 4px;
+  border-bottom: 1px solid var(--line); border-inline-start: 0; padding-inline-start: 0;
+  font-family: var(--doc-h-font); font-size: 1em; font-weight: 600;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--dim);
+}
+.pw-resume-item { margin: 0 0 1.1em; }
+.pw-resume-role { margin: 0; font-weight: 600; color: var(--fg); }
+.pw-resume-meta {
+  display: flex; flex-wrap: wrap; gap: 1px 12px;
+  margin: 2px 0 6px; font-size: .87em; color: var(--dim);
+}
+.pw-resume-org { color: var(--body); font-weight: 500; }
+.pw-resume-when { font-family: var(--mono); font-size: .93em; }
+.pw-resume-note { margin: 0 0 6px; color: var(--body); }
+.pw-resume-item ul { margin: 0; padding-inline-start: 1.15em; }
+.pw-resume-item li { margin: .18em 0; }
+.pw-resume-side { font-size: .95em; }
+.pw-resume-tags {
+  display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none;
+}
+.pw-resume-tags li {
+  padding: 2px 8px; border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--muted); font-size: .84em; color: var(--body);
+}
+
+/* ---- 沙箱里那份独立文档（render.Frame）----
+   它没有顶栏、没有侧边树：带 CSS 的模板要的就是一整页归自己，
+   我们只负责给出版心和基础排版，剩下的让模板覆盖。 */
+body.pw-frame { margin: 0; background: var(--bg); color: var(--body); }
+body.pw-frame > .pw-body {
+  max-width: var(--doc-measure); margin: 0 auto; padding: 28px 20px 64px;
+}
+
+/* artifact：铺满，不要文章行长。种类是 running page，不是 typeset doc。 */
+body.pw-frame.pw-artifact { margin: 0; }
+body.pw-frame.pw-artifact > .pw-artifact-root {
+  max-width: none; margin: 0; padding: 0; min-height: 100dvh;
+}
+[data-pw-artifact] {
+  contain: paint;
+  isolation: isolate;
+  position: relative;
+}
+
+@media print {
+  .pw-top, .pw-nav, .pw-toc, .pw-pager, .pw-foot, .pw-menu { display: none !important; }
+  .pw-main { padding: 0; }
+  .pw-body { max-width: none; }
+  a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 11px; color: #666; }
+  /* 打印用宽版：纸比手机宽。数据表一律展开 —— 打出来的东西没法点开 <details>。 */
+  .pw-chart .pw-narrow { display: none !important; }
+  .pw-chart .pw-wide { display: block !important; }
+  .pw-chart-data[open], .pw-chart-data { display: block; }
+  .pw-chart-data > *:not(summary) { display: revert !important; }
+  .pw-chart, figure { break-inside: avoid; }
+  /* 简历基本上就是为了打印/导 PDF 而存在的：一条经历被分页切成两半
+     是这份东西最难看的失败方式。 */
+  .pw-resume-item, .pw-resume-head { break-inside: avoid; }
+  .pw-resume-sec > h2 { break-after: avoid; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   v0.2：文档容器、令牌属性、组件外壳、库块、embed、行为原语
+   出处：docs/design/artboards/Components.dc.html（待补，见 docs/design/README.md）
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* 文档容器 —— **不要删这三行**。
+ *
+ * 它们是「模板作者可以写真的 CSS」这件事的第四道保证
+ * （docs/TEMPLATES.md §5.2：解析 → 白名单 → 作用域 → 容器隔离）。
+ * 前三道在 render/css 里，这一道在这里：
+ *
+ *   contain: paint    → position: fixed / 超大 z-index / 100vw 的元素
+ *                       **画不出这个盒子**
+ *   isolation: isolate → 新的层叠上下文，z-index 出不去
+ *   position: relative → 让绝对定位的子元素以它为基准，而不是视口
+ *
+ * 所以 position / z-index / transform 才敢出现在放行清单里 ——
+ * 隔离靠容器，不靠禁属性。这三行看起来毫无作用，删掉之后
+ * 一个模板就能盖住整个界面，而那件事只有被人做出来才会被发现。 */
+[data-pw-doc] {
+  contain: paint;
+  isolation: isolate;
+  position: relative;
+}
+
+/* ---------- 属性型令牌 ----------
+ *
+ * 每一个都对应 render/builtin/base-tokens.yaml 里的一个 enum 令牌，
+ * 值落在文档容器的 data-* 上。为什么不映射成一个 CSS 变量：像 bar 这种
+ * 取值要同时改两三条声明（关掉横线、加一根竖条、加内边距），
+ * 一个变量承载不了。 */
+
+/* 分节标题的装饰 */
+[data-pw-doc][data-rule="line"] .pw-body h2 { border-bottom: 1px solid var(--line); padding-bottom: .3em; }
+[data-pw-doc][data-rule="none"] .pw-body h2 { border-bottom: 0; padding-bottom: 0; }
+[data-pw-doc][data-rule="bar"] .pw-body h2 {
+  border-bottom: 0; padding-bottom: 0;
+  padding-inline-start: .6em; border-inline-start: 3px solid var(--accent);
+}
+[data-pw-doc] .pw-body h2 { font-size: var(--doc-h2-size); text-align: var(--doc-h2-align); }
+[data-pw-doc][data-align="center"] .pw-body h2,
+[data-pw-doc][data-align="center"] .pw-body h3 { text-align: center; }
+
+/* 自动编号。counter 挂在容器上，于是一篇文档里的编号从 1 开始，
+   而不是跟着页面上别的东西累加。 */
+[data-pw-doc][data-numbering] { counter-reset: pw-h2; }
+[data-pw-doc][data-numbering="decimal"] .pw-body h2,
+[data-pw-doc][data-numbering="roman"] .pw-body h2,
+[data-pw-doc][data-numbering="badge"] .pw-body h2 { counter-increment: pw-h2; }
+[data-pw-doc][data-numbering="decimal"] .pw-body h2::before {
+  content: counter(pw-h2) ". "; color: var(--accent); font-variant-numeric: tabular-nums;
+}
+[data-pw-doc][data-numbering="roman"] .pw-body h2::before {
+  content: counter(pw-h2, upper-roman) ". "; color: var(--accent);
+}
+[data-pw-doc][data-numbering="badge"] .pw-body h2::before {
+  content: counter(pw-h2);
+  display: inline-grid; place-items: center;
+  inline-size: 1.5em; block-size: 1.5em; margin-inline-end: .5em;
+  border-radius: 50%; background: var(--accent); color: var(--accent-fg);
+  font-family: var(--mono); font-size: .6em; font-weight: 700; vertical-align: .25em;
+}
+
+/* 图片 */
+[data-pw-doc] .pw-body img { border-radius: 0; }
+[data-pw-doc][data-img="rounded"] .pw-body img { border-radius: var(--doc-radius); }
+[data-pw-doc][data-img="card"] .pw-body img {
+  border-radius: var(--doc-radius); box-shadow: 0 1px 3px rgba(0,0,0,.12), 0 8px 24px rgba(0,0,0,.08);
+}
+[data-pw-doc][data-img="frame"] .pw-body img {
+  border-radius: var(--doc-radius); border: 1px solid var(--line); padding: 6px; background: var(--surface);
+}
+
+/* 链接 */
+[data-pw-doc][data-link="underline"] .pw-body a { text-decoration: underline; text-underline-offset: .16em; }
+[data-pw-doc][data-link="accent"] .pw-body a { text-decoration: none; color: var(--accent); font-weight: 500; }
+[data-pw-doc][data-link="plain"] .pw-body a { text-decoration: none; color: inherit; border-bottom: 1px solid var(--mark); }
+
+/* 列表标记 */
+[data-pw-doc][data-list="dash"] .pw-body ul { list-style: none; padding-inline-start: 1.1em; }
+[data-pw-doc][data-list="dash"] .pw-body ul > li::before {
+  content: "—"; color: var(--dim); margin-inline-start: -1.1em; margin-inline-end: .45em;
+}
+[data-pw-doc][data-list="accent"] .pw-body ul > li::marker { color: var(--accent); }
+[data-pw-doc][data-list="none"] .pw-body ul { list-style: none; padding-inline-start: 0; }
+
+/* 表格 */
+[data-pw-doc][data-table="zebra"] .pw-body tbody tr:nth-child(even) { background: var(--muted); }
+[data-pw-doc][data-table="plain"] .pw-body th,
+[data-pw-doc][data-table="plain"] .pw-body td { border: 0; border-bottom: 1px solid var(--line); }
+[data-pw-doc][data-table="plain"] .pw-body th { background: none; }
+
+/* 代码块 */
+[data-pw-doc][data-codeblock="plain"] .pw-body pre { background: none; border: 1px solid var(--line); }
+[data-pw-doc][data-codeblock="dark"] .pw-body pre { background: #10221D; color: #E7EEEB; border-color: transparent; }
+[data-pw-doc][data-codeblock="dark"] .pw-body pre code { color: inherit; }
+
+/* 节奏。组件用 calc(… * var(--doc-rhythm)) 接它，正文段落在这里接。 */
+[data-pw-doc] .pw-body p,
+[data-pw-doc] .pw-body ul,
+[data-pw-doc] .pw-body ol { margin-block: calc(1em * var(--doc-rhythm)); }
+[data-pw-doc] .pw-body h2 { margin-block-start: calc(1.8em * var(--doc-rhythm)); }
+
+/* ---------- 组件外壳 ----------
+ *
+ * 每个组件的产出被套在 .pw-c.pw-c-<名字> 里，而组件自己那段 CSS
+ * 被作用域到那个类下面。外壳本身**不带外边距**：间距是组件的设计，
+ * 外壳只提供一个作用域。 */
+.pw-c { display: block; }
+.pw-c > :first-child { margin-block-start: 0; }
+
+/* 组件出错时那个看得见的方块。不静默失败：作者要能一眼看到
+   哪一块坏了、为什么坏。 */
+.pw-block-bad {
+  margin: 1.4em 0; padding: 10px 12px;
+  border: 1px solid var(--warn-fg); border-radius: var(--radius-md);
+  background: var(--warn-bg);
+}
+
+/* ---------- 库块（mermaid / katex / echarts …） ----------
+ *
+ * ⚠️ **声明原文默认可见。** 它只在 JS 真的把这块升级成图之后才隐藏。
+ * 这是这一层能同时要「图」和「SEO」的全部理由：爬虫、屏幕阅读器、
+ * 没有 JS 的读者拿到的是那段声明，不是一个空框。
+ * 谁想把 display:none 挪到默认状态上，请先回答「爬虫看到什么」。 */
+.pw-lib { margin: calc(1.6em * var(--doc-rhythm)) 0; }
+.pw-lib-src {
+  margin: 0; padding: 12px 14px; overflow-x: auto;
+  background: var(--code-bg); border-radius: var(--doc-radius);
+  font-family: var(--mono); font-size: 12.5px; line-height: 1.6;
+}
+.pw-lib > figcaption { margin-top: .5em; font-size: 13px; color: var(--dim); }
+.pw-lib.is-ready .pw-lib-src { display: none; }
+.pw-lib.is-ready > .pw-lib-out { display: block; overflow-x: auto; }
+.pw-lib-out svg { max-width: 100%; height: auto; }
+.pw-lib-off .pw-lib-src { border-inline-start: 3px solid var(--warn-fg); }
+.pw-lib-off > figcaption { color: var(--warn-fg-dark); }
+.pw-lib-out .katex-display { overflow-x: auto; overflow-y: hidden; }
+
+/* ---------- embed：一块要跑代码的东西 ----------
+ *
+ * 页面其余部分仍然 inline、仍然被索引 —— 只有这一块在隔离源上跑
+ * （docs/TEMPLATES.md §6.6）。iframe 由 reader.js 换进来；换进来之前
+ * 读者看到的是海报、标题与说明，而不是一个空框。 */
+.pw-embed {
+  margin: calc(1.6em * var(--doc-rhythm)) 0;
+  border: 1px solid var(--mark); border-radius: var(--doc-radius);
+  overflow: hidden; background: var(--surface);
+}
+.pw-embed-poster { display: block; width: 100%; height: auto; }
+.pw-embed-title { margin: 0; padding: 10px 14px; font-weight: 600; font-size: 14px; }
+.pw-embed-note { margin: 0; padding: 0 14px 12px; font-size: 13px; color: var(--dim); }
+.pw-embed iframe { display: block; width: 100%; border: 0; background: var(--bg); }
+.pw-embed.is-ready .pw-embed-poster { display: none; }
+
+/* ---------- 行为原语 ----------
+ *
+ * ⚠️ 每一条的**默认状态都是「全部显示」**，收起来的样子只在
+ * .is-ready 之后才生效 —— 而 .is-ready 是 reader.js 加的。
+ *
+ * 这条是这一层能同时要「交互」和「SEO」的全部理由：所有状态的内容
+ * 都在 DOM 里，JS 只决定显示哪一个。于是爬虫、屏幕阅读器、没有 JS 的
+ * 读者拿到的是**全部**内容，而不是第一屏。
+ * 谁想把某个行为的初始状态写成 display:none，请先回答同一个问题。 */
+
+/* reveal：滚动进入视口时淡入。没有 JS 时它本来就是显示的。 */
+[data-behavior="reveal"].is-ready { opacity: 0; transform: translateY(10px); }
+[data-behavior="reveal"].is-ready.is-in {
+  opacity: 1; transform: none;
+  transition: opacity .5s ease, transform .5s ease;
+}
+
+/* steps：一次显示一步。 */
+[data-behavior="steps"].is-ready .pw-step-hidden { display: none; }
+.pw-steps-nav {
+  display: flex; gap: 8px; align-items: center;
+  margin-top: 10px; font-size: 13px; color: var(--dim);
+}
+.pw-steps-nav button {
+  min-height: 32px; padding: 4px 12px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: var(--radius-md);
+  background: var(--surface); color: var(--fg); font: inherit; font-size: 13px;
+}
+.pw-steps-nav button[disabled] { opacity: .45; cursor: default; }
+.pw-steps-dots { display: flex; gap: 5px; margin-inline-start: auto; }
+.pw-steps-dots i {
+  inline-size: 6px; block-size: 6px; border-radius: 50%;
+  background: var(--mark); display: block;
+}
+.pw-steps-dots i.is-on { background: var(--accent); }
+
+/* scrolly：图钉住，文字滚。窄屏上退回「图在上、文字在下」。 */
+[data-behavior="scrolly"].is-ready .pw-scrolly-fig { position: sticky; top: 72px; }
+@media (max-width: 719px) {
+  [data-behavior="scrolly"].is-ready .pw-scrolly-fig { position: static; }
+}
+
+/* tabs / accordion：没有 JS 时全部展开，各自带小标题。 */
+[data-behavior="tabs"].is-ready .pw-tab-panel[hidden] { display: none; }
+.pw-tablist { display: flex; gap: 4px; flex-wrap: wrap; border-bottom: 1px solid var(--line); }
+.pw-tablist button {
+  padding: 8px 12px; min-height: 40px; cursor: pointer;
+  border: 0; border-bottom: 2px solid transparent; background: none;
+  color: var(--dim); font: inherit; font-size: 14px;
+}
+.pw-tablist button[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); }
+[data-behavior="accordion"].is-ready .pw-acc-body[hidden] { display: none; }
+.pw-acc-head {
+  display: flex; width: 100%; gap: 8px; align-items: center; text-align: start;
+  padding: 10px 0; min-height: 44px; cursor: pointer;
+  border: 0; border-top: 1px solid var(--line); background: none;
+  color: var(--fg); font: inherit; font-weight: 600;
+}
+.pw-acc-head::before { content: "▸"; color: var(--accent); transition: transform .18s ease; }
+.pw-acc-head[aria-expanded="true"]::before { transform: rotate(90deg); }
+
+/* compare：前后对比滑块。没有 JS 时两张图并排。 */
+[data-behavior="compare"].is-ready .pw-cmp-wrap { position: relative; overflow: hidden; }
+[data-behavior="compare"].is-ready .pw-cmp-wrap > :nth-child(2) {
+  position: absolute; inset: 0; clip-path: inset(0 0 0 var(--pw-split, 50%));
+}
+.pw-cmp-handle {
+  position: absolute; inset-block: 0; inset-inline-start: var(--pw-split, 50%);
+  inline-size: 2px; background: var(--accent); cursor: ew-resize;
+}
+.pw-cmp-handle::after {
+  content: ""; position: absolute; inset-block-start: 50%; inset-inline-start: 50%;
+  inline-size: 28px; block-size: 28px; margin: -14px 0 0 -14px;
+  border-radius: 50%; background: var(--accent);
+}
+
+/* hotspot：图上的标注点。没有 JS 时是图 + 一份编号说明列表。 */
+[data-behavior="hotspot"].is-ready .pw-hot-note[hidden] { display: none; }
+.pw-hot-pin {
+  position: absolute; inline-size: 26px; block-size: 26px; cursor: pointer;
+  border: 2px solid var(--accent-fg); border-radius: 50%;
+  background: var(--accent); color: var(--accent-fg);
+  font-family: var(--mono); font-size: 12px; font-weight: 700;
+  transform: translate(-50%, -50%);
+}
+
+/* carousel：横向翻页。没有 JS 时依次排列。 */
+[data-behavior="carousel"].is-ready .pw-car-track {
+  display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+[data-behavior="carousel"].is-ready .pw-car-track > * { flex: 0 0 100%; scroll-snap-align: start; }
+[data-behavior="carousel"].is-ready .pw-car-track::-webkit-scrollbar { display: none; }
+
+/* lightbox：点图放大。 */
+.pw-lightbox {
+  position: fixed; inset: 0; z-index: 60;
+  display: grid; place-items: center; padding: 24px;
+  background: rgba(0,0,0,.82); cursor: zoom-out;
+}
+.pw-lightbox img { max-width: 100%; max-height: 100%; border-radius: var(--radius-md); }
+.pw-lightbox button {
+  position: absolute; inset-block-start: 12px; inset-inline-end: 12px;
+  min-inline-size: 44px; min-block-size: 44px; cursor: pointer;
+  border: 0; border-radius: var(--radius-md);
+  background: rgba(255,255,255,.16); color: #fff; font-size: 18px;
+}
+
+/* sync：两块内容联动高亮。 */
+[data-behavior="sync"].is-ready .is-linked { background: var(--accent-light); border-radius: 3px; }
+
+/* sticky-toc：阅读进度。 */
+.pw-toc-progress { block-size: 2px; background: var(--accent); transition: inline-size .12s linear; }
+
+/* ---------- 动画的两条纪律 ----------
+ *
+ * ① 尊重 prefers-reduced-motion。前面已经有一条全局的 * { animation: none }，
+ *    这里再把行为原语显式退回「全部显示」—— 全局那条只关掉动画，
+ *    关不掉 display:none。
+ * ② 动画不能是内容的唯一载体。所以下面这几条把「收起来」全部还原：
+ *    一个只在动画之后才出现的句子，等于一个搜索引擎读不到、
+ *    也打印不出来的句子。 */
+@media (prefers-reduced-motion: reduce) {
+  [data-behavior="reveal"].is-ready { opacity: 1; transform: none; }
+  [data-behavior="steps"].is-ready .pw-step-hidden,
+  [data-behavior="tabs"].is-ready .pw-tab-panel[hidden],
+  [data-behavior="accordion"].is-ready .pw-acc-body[hidden],
+  [data-behavior="hotspot"].is-ready .pw-hot-note[hidden] { display: revert; }
+}
+/* 模板作者可以用 motion: off 关掉全部动效 —— 一份要打印的东西
+   （简历、一页纸）本来就不需要它们。 */
+[data-pw-doc][data-motion="off"] * { animation: none !important; transition: none !important; }
+[data-pw-doc][data-motion="off"] [data-behavior="reveal"].is-ready { opacity: 1; transform: none; }
+
+/* ---------- 打印 ---------- */
+@media print {
+  /* 打印时**全部展开**：纸上没法点开一个标签页，也没法拖一个滑块。 */
+  [data-behavior] .pw-step-hidden,
+  [data-behavior] .pw-tab-panel[hidden],
+  [data-behavior] .pw-acc-body[hidden],
+  [data-behavior] .pw-hot-note[hidden] { display: revert !important; }
+  .pw-steps-nav, .pw-tablist, .pw-cmp-handle, .pw-lightbox { display: none !important; }
+  [data-behavior="reveal"] { opacity: 1 !important; transform: none !important; }
+  [data-behavior="scrolly"] .pw-scrolly-fig { position: static !important; }
+  [data-behavior="carousel"] .pw-car-track { display: block !important; overflow: visible !important; }
+  /* 库块印不出来的那些（图要 JS 才有），至少把声明原文留在纸上。 */
+  .pw-lib.is-ready .pw-lib-src { display: block !important; }
+  .pw-c, .pw-embed, .pw-lib { break-inside: avoid; }
+  [data-pw-doc] { contain: none; }
+}
+
+/* ---------- 读者自己的开关：明暗 ----------
+ *
+ * 它是**读者的**偏好，不是作者的设定 —— 和浏览器的字号缩放同一类东西。
+ * 所以它落在 <html> 上（`data-theme`），而不是文档容器上：
+ * 文档容器上那些是作者冻进去的设计快照，读者的选择不该混进那一份。
+ *
+ * 必须在**没有 JavaScript 时也成立**：不选明暗就跟着系统。开关只是覆盖，不是启用。
+ *
+ * 这里曾经还有一条「阅读宽度」规则（加宽 = 散文也不限行长）。版心改成
+ * 「散文停在行长、其余撑满整栏」之后它被去掉了：一个只会把行拉到 170 个字符的
+ * 按钮不是偏好，是陷阱。别再加回来 —— 想要更宽的散文，改模板令牌 `measure`。
+ */
+
+/* 偏好条。
+ *
+ * 放在顶栏右侧（.pw-actions）里，独立导出时自己浮在右上角 ——
+ * 那份文件没有外壳，而开关不该因此消失。 */
+.pw-prefs { display: flex; gap: 4px; align-items: center; }
+.pw-prefs button {
+  display: grid; place-items: center;
+  min-inline-size: 34px; min-block-size: 34px; padding: 0 8px;
+  border: 1px solid var(--line); border-radius: var(--radius-md);
+  background: var(--surface); color: var(--dim);
+  font: inherit; font-size: 12px; line-height: 1; cursor: pointer;
+}
+.pw-prefs button:hover { border-color: var(--accent); color: var(--fg); }
+.pw-prefs button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+.pw-prefs svg { inline-size: 15px; block-size: 15px; fill: none; stroke: currentColor; stroke-width: 1.7; }
+body.pw-standalone .pw-prefs {
+  position: fixed; inset-block-start: 14px; inset-inline-end: 14px; z-index: 30;
+}
+@media print { .pw-prefs { display: none !important; } }
+
+/* 独立导出的那一个 HTML 文件：没有外壳，正文自己撑起页面。 */
+body.pw-standalone { background: var(--bg); }
+/* 与阅读页同一套版心：页面最宽 1920 居中，正文栏从左边开始，散文停在行长里
+   （那条规则在 .pw-body 上，这里也有 .pw-body），代码块与表格撑到栏边。 */
+body.pw-standalone .pw-main { max-width: 1920px; margin: 0 auto; padding: 32px var(--gutter) 72px; }

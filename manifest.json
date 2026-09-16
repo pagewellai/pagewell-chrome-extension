@@ -1,0 +1,62 @@
+{
+  "manifest_version": 3,
+  "name": "PageWell — Share HTML",
+  "description": "Share the open page as a PageWell link, update the same link later, and sign in to keep documents.",
+  "version": "0.3.2",
+  "minimum_chrome_version": "120",
+  "permissions": ["activeTab", "alarms", "clipboardWrite", "scripting", "storage"],
+  "host_permissions": [
+    "https://pagewell.ai/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*",
+    "file:///*"
+  ],
+  "optional_host_permissions": [
+    "https://*.claudeusercontent.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["file:///*.md", "file:///*.markdown"],
+      "js": ["content-markdown.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["render/reader.css", "render/reader.js", "icons/icon.svg"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  },
+  "action": {
+    "default_title": "Share with PageWell",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+U",
+        "mac": "Command+Shift+U"
+      },
+      "description": "Open PageWell to share or update the current page"
+    }
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}
