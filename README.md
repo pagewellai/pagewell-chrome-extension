@@ -14,10 +14,8 @@ it came from in `MANIFEST`.
 
 ## Install from GitHub
 
-**Without git:** download the latest release —
-[`pagewell-chrome-extension-0.3.2.zip`](https://github.com/pagewellai/pagewell-chrome-extension/releases/latest) —
-or the zip GitHub makes for the tag
-([`v0.3.2`](https://github.com/pagewellai/pagewell-chrome-extension/archive/refs/tags/v0.3.2.zip)), unzip it, then:
+**Without git:** download the zip of the current version —
+[`v0.3.2.zip`](https://github.com/pagewellai/pagewell-chrome-extension/archive/refs/tags/v0.3.2.zip) — unzip it, then:
 
 1. Open `chrome://extensions` and turn on **Developer mode** (top right).
 2. Click **Load unpacked** and pick the unzipped folder (the one containing `manifest.json`).
@@ -52,9 +50,9 @@ original site.
 
 ## Releases
 
-`v0.3.2` — built from PageWell `39a7c69` at `2026-09-16T05:15:40Z`. Every release
-is a tag here (`v<version>`, the same number as `manifest.json`) and a
-GitHub Release with the store zip attached. What changed is in
+`v0.3.2` — built from PageWell `774eefb` at `2026-09-16T05:17:02Z`. Every release
+is a tag here (`v<version>`, the same number as `manifest.json`); the zip
+GitHub makes for the tag is the extension, ready to load. What changed is in
 [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Licence
