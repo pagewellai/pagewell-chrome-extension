@@ -1,0 +1,14 @@
+{
+  "extensionName": {
+    "message": "PageWell — 分享 HTML 与渲染 Markdown"
+  },
+  "extensionDescription": {
+    "message": "把 HTML 页面分享成链接，并在 Chrome 中将 AI 助手生成的 Markdown 转成精美易读的 HTML。"
+  },
+  "extensionAction": {
+    "message": "用 PageWell 分享"
+  },
+  "extensionCommand": {
+    "message": "打开 PageWell，分享或更新当前页面"
+  }
+}

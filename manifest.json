@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "PageWell — Share HTML",
-  "description": "Share the open page as a PageWell link, update the same link later, and sign in to keep documents.",
-  "version": "0.3.2",
+  "name": "__MSG_extensionName__",
+  "description": "__MSG_extensionDescription__",
+  "default_locale": "en",
+  "version": "0.3.4",
   "minimum_chrome_version": "120",
   "permissions": ["activeTab", "alarms", "clipboardWrite", "scripting", "storage"],
   "host_permissions": [
@@ -14,6 +15,13 @@
   "optional_host_permissions": [
     "https://*.claudeusercontent.com/*"
   ],
+  "externally_connectable": {
+    "matches": [
+      "https://pagewell.ai/*",
+      "http://localhost/*",
+      "http://127.0.0.1/*"
+    ]
+  },
   "background": {
     "service_worker": "background.js",
     "type": "module"
@@ -27,7 +35,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["render/reader.css", "render/reader.js", "icons/icon.svg"],
+      "resources": ["render/reader.css", "render/reader.js", "render/lib/*", "icons/icon.svg"],
       "matches": ["<all_urls>"]
     }
   ],
@@ -35,7 +43,7 @@
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
   },
   "action": {
-    "default_title": "Share with PageWell",
+    "default_title": "__MSG_extensionAction__",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon-16.png",
@@ -50,7 +58,7 @@
         "default": "Ctrl+Shift+U",
         "mac": "Command+Shift+U"
       },
-      "description": "Open PageWell to share or update the current page"
+      "description": "__MSG_extensionCommand__"
     }
   },
   "icons": {

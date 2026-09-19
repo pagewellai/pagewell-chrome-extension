@@ -1,0 +1,14 @@
+{
+  "extensionName": {
+    "message": "PageWell — Comparte HTML y renderiza Markdown"
+  },
+  "extensionDescription": {
+    "message": "Comparte páginas HTML por enlaces y convierte Markdown de asistentes de IA en HTML claro y elegante directamente en Chrome."
+  },
+  "extensionAction": {
+    "message": "Compartir con PageWell"
+  },
+  "extensionCommand": {
+    "message": "Abrir PageWell para compartir o actualizar la página actual"
+  }
+}

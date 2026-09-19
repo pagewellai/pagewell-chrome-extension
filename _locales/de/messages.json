@@ -1,0 +1,14 @@
+{
+  "extensionName": {
+    "message": "PageWell — HTML teilen & Markdown rendern"
+  },
+  "extensionDescription": {
+    "message": "HTML-Seiten als Links teilen und Markdown von KI-Assistenten direkt in Chrome in ansprechendes, gut lesbares HTML umwandeln."
+  },
+  "extensionAction": {
+    "message": "Mit PageWell teilen"
+  },
+  "extensionCommand": {
+    "message": "PageWell öffnen, um die aktuelle Seite zu teilen oder zu aktualisieren"
+  }
+}

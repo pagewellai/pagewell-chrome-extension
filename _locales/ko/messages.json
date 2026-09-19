@@ -1,0 +1,14 @@
+{
+  "extensionName": {
+    "message": "PageWell — HTML 공유 및 Markdown 렌더링"
+  },
+  "extensionDescription": {
+    "message": "HTML 페이지를 링크로 공유하고 AI 도우미가 만든 Markdown을 Chrome에서 보기 좋고 읽기 쉬운 HTML로 변환하세요."
+  },
+  "extensionAction": {
+    "message": "PageWell로 공유"
+  },
+  "extensionCommand": {
+    "message": "PageWell을 열어 현재 페이지 공유 또는 업데이트"
+  }
+}

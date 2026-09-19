@@ -1,0 +1,14 @@
+{
+  "extensionName": {
+    "message": "PageWell — HTMLを共有、Markdownをレンダリング"
+  },
+  "extensionDescription": {
+    "message": "HTMLページをリンクとして共有し、AIアシスタントが生成したMarkdownを、Chrome上で美しく読みやすいHTMLに変換します。"
+  },
+  "extensionAction": {
+    "message": "PageWellで共有"
+  },
+  "extensionCommand": {
+    "message": "PageWellを開いて現在のページを共有または更新"
+  }
+}
