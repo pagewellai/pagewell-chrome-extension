@@ -5,7 +5,17 @@ press the button (or `⌘⇧U` / `Ctrl+Shift+U`) and a link comes back. Press
 again on the same page to **update the same link**. No account is needed for a
 24-hour link; sign in to keep documents. Local `.md` files render in place.
 
-The Chrome Web Store listing is coming; until then install it from this repository as below.
+Install it from the [Chrome Web Store](https://chromewebstore.google.com/detail/pagewell-%E2%80%94-share-html-ren/bdaogpjdfgacjommcpofkblgdpgojnfm), or from this repository as below.
+
+## See it in action
+
+### Share the page you are viewing
+
+![Share the current page as a PageWell link](store-assets/screenshot-1-share.png)
+
+### Update the same link in place
+
+![Update an existing PageWell link with the current page](store-assets/screenshot-2-update.png)
 
 This repository holds the **built extension only** — its root is the unpacked
 extension (`manifest.json` is right here). The source lives in the PageWell
@@ -50,10 +60,10 @@ original site.
 
 ## Releases
 
-`v0.3.4` — built from PageWell `0037c8f` at `2026-09-19T14:47:23Z`. Every release
-is a tag here (`v<version>`, the same number as `manifest.json`); the zip
-GitHub makes for the tag is the extension, ready to load. What changed is in
-[`CHANGELOG.md`](CHANGELOG.md).
+The current build is `v0.3.4`. Every release is a tag here (`v<version>`, the
+same number as `manifest.json`); the zip GitHub makes for the tag is the
+extension, ready to load. Its exact source commit is recorded in `MANIFEST`,
+and what changed is in [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Licence
 
