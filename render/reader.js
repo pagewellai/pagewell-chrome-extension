@@ -9,6 +9,16 @@
   // 脚本做（render.PrefsScript）：它读 localStorage 的 pw:prefs.theme —— 读者在站点顶栏选的那一档
   //（site.js）—— 没选就跟系统。阅读页因此没有自己的偏好 UI，也就没有「先白一下再变黑」的问题。
 
+  // 新正文由渲染器自带这层；给已经冻进 R2 的旧正文补上同一层。类名沿用 pw-table-scroll
+  // 是为了不改存量 DOM；现在这层只管边框与圆角裁切，表格在栏宽内让单元格换行。
+  for (const table of document.querySelectorAll('.pw-body table')) {
+    if (table.closest('.pw-c, .pw-chart, .pw-table-scroll')) continue;
+    const wrap = document.createElement('div');
+    wrap.className = 'pw-table-scroll';
+    table.before(wrap);
+    wrap.appendChild(table);
+  }
+
   // ---- ⋯ 菜单：点外面关，选了动作也关（复制除外 —— 按钮上要先闪一下「已复制」） ----
   const more = document.querySelector('.pw-more');
   if (more) {
@@ -389,7 +399,7 @@
         // 复制的是一份克隆：图片与链接换成绝对地址 —— 正文里写的是站内相对地址，贴到别处就断了；
         // 行为原语挂上来的按钮（步骤的 Back / Next）不是内容，去掉。
         const clone = source.cloneNode(true);
-        clone.querySelectorAll('.pw-steps-nav').forEach((n) => n.remove());
+        clone.querySelectorAll('.pw-steps-nav, .pw-code-copy, .pw-dgv-open').forEach((n) => n.remove());
         for (const [sel, attr] of [['img[src]', 'src'], ['a[href]', 'href'], ['source[src]', 'src'], ['video[src]', 'src']]) {
           clone.querySelectorAll(sel).forEach((n) => {
             try { n.setAttribute(attr, new URL(n.getAttribute(attr), location.href).href); } catch { /* 无效地址原样留着 */ }
@@ -447,6 +457,61 @@
   const root = document.querySelector('[data-pw-doc]') || document.querySelector('.pw-body');
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches ||
                  (root && root.dataset.motion === 'off');
+
+  // 页面给这份脚本的文案：宿主（站点阅读页、VS Code 预览、Chrome 插件）把译好的字放在某个元素的 data-l-* 上，
+  // 没给就用英文。按属性名在整页里找，所以放在哪一个元素上都行。
+  const pageLabel = (key, fallback) => {
+    const holder = document.querySelector(`[data-l-${key}]`);
+    return (holder && holder.getAttribute(`data-l-${key}`)) || fallback;
+  };
+
+  // ---- 代码块：右上角的语言名与复制（MarkdownStyle 画板）----
+  // 每块代码套一层 .pw-code、放一枚复制按钮；语言名是 CSS 读 data-lang 生成的，不进 DOM。
+  // 按钮只有图标（字在 aria-label / title 里）：整页「复制为纯文本」读的是 innerText，按钮里的字会混进去。
+  // 库块的声明原文（.pw-lib-src）不算代码块：那是一张图的源，图画出来它就藏了。
+  const ICON_COPY = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" ' +
+    'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"></rect>' +
+    '<path d="M15 5H6a2 2 0 0 0-2 2v9"></path></svg>';
+  const ICON_DONE = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" ' +
+    'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"></path></svg>';
+  for (const pre of document.querySelectorAll('.pw-body pre')) {
+    if (pre.classList.contains('pw-lib-src') || pre.parentElement.classList.contains('pw-code') || !pre.querySelector('code')) continue;
+    const wrap = document.createElement('div');
+    wrap.className = 'pw-code';
+    if (pre.dataset.lang) wrap.dataset.lang = pre.dataset.lang;
+    pre.before(wrap);
+    wrap.appendChild(pre);
+    const label = pageLabel('code-copy', 'Copy'), done = pageLabel('code-copied', 'Copied');
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'pw-code-copy';
+    const show = (ok) => {
+      b.classList.toggle('is-done', ok);
+      b.innerHTML = ok ? ICON_DONE : ICON_COPY;
+      b.title = ok ? done : label;
+      b.setAttribute('aria-label', b.title);
+    };
+    show(false);
+    let timer = 0;
+    b.addEventListener('click', async () => {
+      const text = pre.innerText.replace(/\n$/, '');
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        // 剪贴板 API 不在（非安全上下文、被宿主拦了）：选中整块，让读者自己按 ⌘C
+        const range = document.createRange();
+        range.selectNodeContents(pre);
+        const sel = getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        return;
+      }
+      show(true);
+      clearTimeout(timer);
+      timer = setTimeout(() => show(false), 1600);
+    });
+    wrap.appendChild(b);
+  }
 
   const onView = (el, fn, opts) => {
     if (!('IntersectionObserver' in window)) { fn(); return; }
@@ -772,21 +837,242 @@
     }
   }
 
+  /* ---------------------------------------------------------------- 图：点开全屏单独看
+     （DiagramFullscreen 画板，2026-10-09 用户：「markdown 的各个流程图支持点击全屏放大单独展示」）
+
+     Mermaid 画好一张图，右上角挂一枚「全屏」按钮，整张图也能点。打开的是一层铺满窗口的查看层，
+     **不是**浏览器的原生全屏：点一张图就让整块屏幕切一次空间太重，VS Code 预览与 iOS 也给不了；
+     这一层在网站、本机预览、两个插件里是同一个样子。
+
+     几条不显然的：
+     - 查看层挂在 <body> 上，不挂在文档容器里 —— [data-pw-doc] 有 contain: paint（reader.css 写了为什么），
+       fixed 的东西在里面画不出来。于是这篇文档自己的颜色（模板可能改过 --bg）抄到查看层上。
+     - 底色是页面的，不是黑的：图的颜色是照着这块底画的，放到黑底上线和字都会发灰。
+     - 放大改的是 SVG 的宽高，不是 CSS 的 scale：后者把画好的位图拉大，字会糊；前者每次重画矢量。
+       平移才用 transform。
+     - 克隆的那份换掉 id：Mermaid 的 <style> 与箭头都按 #id 引用，两份同 id 时箭头会去找原图那一份。
+     - VS Code 预览每次重渲都会重跑这个文件：全局监听只在查看层开着时挂，关掉就摘。
+     - 文案从宿主页面的 data-l-* 来（pageLabel，站点阅读页、VS Code 预览、Chrome 插件各给各的语言），缺省英文。 */
+  const DGV_MIN = 0.25, DGV_MAX = 8, DGV_FIT_MAX = 2.5;
+  const dgvLabel = pageLabel;
+  const dgvIcon = (paths) => '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + paths + '</svg>';
+  const DGV_ICONS = {
+    open: '<path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"></path>',
+    out: '<path d="M5 12h14"></path>',
+    in: '<path d="M12 5v14M5 12h14"></path>',
+    fit: '<path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"></path><rect x="8.5" y="8.5" width="7" height="7" rx="1"></rect>',
+  };
+  let dgvOpen = null;
+
+  // 图上方最近的那个标题：单独铺满窗口时，它替这张图说清自己是什么。
+  function dgvTitle(fig) {
+    let best = null;
+    for (const h of document.querySelectorAll('.pw-title, .pw-body :is(h1, h2, h3, h4)')) {
+      if (h.compareDocumentPosition(fig) & Node.DOCUMENT_POSITION_FOLLOWING) best = h; else break;
+    }
+    return best ? best.textContent.replace(/\s+/g, ' ').trim() : '';
+  }
+
+  function diagramButton(fig) {
+    if (fig.querySelector(':scope > .pw-dgv-open')) return;
+    const label = dgvLabel('diagram-open', 'Full screen');
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'pw-dgv-open';
+    b.title = label;
+    b.setAttribute('aria-label', label);
+    b.innerHTML = dgvIcon(DGV_ICONS.open);
+    b.addEventListener('click', (e) => { e.stopPropagation(); openDiagram(fig, b); });
+    fig.appendChild(b);
+    fig.classList.add('is-zoomable');
+    fig.addEventListener('click', (e) => {
+      if (!fig.classList.contains('is-ready') || e.target.closest('a, button')) return;
+      // 在图上拖选一段字的人不是要全屏
+      if (String(window.getSelection ? getSelection() : '').trim()) return;
+      openDiagram(fig, b);
+    });
+  }
+
+  function openDiagram(fig, opener) {
+    const src = fig.querySelector('.pw-lib-out svg');
+    if (!src || dgvOpen) return;
+    const vb = src.viewBox && src.viewBox.baseVal;
+    const rect = src.getBoundingClientRect();
+    const nw = (vb && vb.width) || rect.width, nh = (vb && vb.height) || rect.height;
+    if (!(nw > 0 && nh > 0)) return;
+
+    const box = document.createElement('div');
+    box.className = 'pw-dgv';
+    box.tabIndex = -1;
+    box.setAttribute('role', 'dialog');
+    box.setAttribute('aria-modal', 'true');
+    const cs = getComputedStyle(fig);
+    for (const v of ['--bg', '--surface', '--muted', '--fg', '--body', '--dim', '--line', '--accent', '--font', '--mono']) {
+      const val = cs.getPropertyValue(v).trim();
+      if (val) box.style.setProperty(v, val);
+    }
+    box.innerHTML =
+      '<div class="pw-dgv-stage"><div class="pw-dgv-canvas"></div></div>' +
+      '<div class="pw-dgv-head"><span class="pw-dgv-title"></span>' +
+      '<button type="button" class="pw-dgv-exit"><span></span><span class="pw-dgv-esc"> · Esc</span></button></div>' +
+      '<div class="pw-dgv-bar">' +
+      `<button type="button" data-z="out">${dgvIcon(DGV_ICONS.out)}</button>` +
+      '<output class="pw-dgv-pct" aria-live="polite"></output>' +
+      `<button type="button" data-z="in">${dgvIcon(DGV_ICONS.in)}</button>` +
+      '<span class="pw-dgv-sep" aria-hidden="true"></span>' +
+      `<button type="button" data-z="fit">${dgvIcon(DGV_ICONS.fit)}</button></div>`;
+    const title = dgvTitle(fig);
+    box.querySelector('.pw-dgv-title').textContent = title;
+    box.setAttribute('aria-label', title || dgvLabel('diagram-open', 'Full screen'));
+    const exit = box.querySelector('.pw-dgv-exit');
+    exit.firstChild.textContent = dgvLabel('diagram-exit', 'Exit full screen');
+    for (const [z, key, fallback] of [['out', 'zoom-out', 'Zoom out'], ['in', 'zoom-in', 'Zoom in'], ['fit', 'zoom-fit', 'Fit to screen']]) {
+      const btn = box.querySelector(`[data-z="${z}"]`);
+      btn.title = dgvLabel(key, fallback);
+      btn.setAttribute('aria-label', btn.title);
+    }
+
+    const id = src.id || 'pw-dgv-svg';
+    const canvas = box.querySelector('.pw-dgv-canvas');
+    canvas.innerHTML = src.id ? src.outerHTML.split(id).join(id + '-full') : src.outerHTML;
+    const svg = canvas.querySelector('svg');
+    svg.removeAttribute('style'); // Mermaid 的 max-width 会把它压回栏宽
+    const stage = box.querySelector('.pw-dgv-stage');
+    const pct = box.querySelector('.pw-dgv-pct');
+    const zin = box.querySelector('[data-z="in"]'), zout = box.querySelector('[data-z="out"]');
+
+    let scale = 1, x = 0, y = 0, fitted = true;
+    const apply = () => {
+      svg.setAttribute('width', String(nw * scale));
+      svg.setAttribute('height', String(nh * scale));
+      canvas.style.transform = `translate(${x}px, ${y}px)`;
+      pct.textContent = Math.round(scale * 100) + '%';
+      zin.disabled = scale >= DGV_MAX - 1e-6;
+      zout.disabled = scale <= DGV_MIN + 1e-6;
+    };
+    // 适应窗口：四周留白（手机 16，其余 48），上面让出标题那一行，下面让出缩放条；初次打开最多放到 250% ——
+    // 三个框的小图不该一打开就是六倍大。
+    const fit = () => {
+      const w = box.clientWidth, h = box.clientHeight;
+      const pad = w < 600 ? 16 : 48, top = 64, bottom = 96;
+      const aw = Math.max(1, w - pad * 2), ah = Math.max(1, h - top - bottom);
+      scale = Math.max(DGV_MIN, Math.min(DGV_FIT_MAX, aw / nw, ah / nh));
+      x = pad + (aw - nw * scale) / 2;
+      y = top + (ah - nh * scale) / 2;
+      fitted = true;
+      apply();
+    };
+    // 以 (px, py) 为不动点缩放：鼠标指着哪，放大之后那一点还在指针下面。
+    const zoomTo = (next, px = box.clientWidth / 2, py = box.clientHeight / 2) => {
+      next = Math.min(DGV_MAX, Math.max(DGV_MIN, next));
+      x = px - (px - x) * (next / scale);
+      y = py - (py - y) * (next / scale);
+      scale = next;
+      fitted = false;
+      apply();
+    };
+    const pan = (dx, dy) => { x += dx; y += dy; fitted = false; apply(); };
+
+    box.querySelector('[data-z="in"]').addEventListener('click', () => zoomTo(scale * 1.25));
+    box.querySelector('[data-z="out"]').addEventListener('click', () => zoomTo(scale / 1.25));
+    box.querySelector('[data-z="fit"]').addEventListener('click', fit);
+
+    // 滚轮 / 触控板：上下是缩放（按住 Ctrl 的那种就是双指捏合），左右是平移。
+    stage.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? box.clientHeight : 1;
+      if (!e.ctrlKey && Math.abs(e.deltaX) > Math.abs(e.deltaY)) { pan(-e.deltaX * unit, 0); return; }
+      zoomTo(scale * Math.exp(-e.deltaY * unit * (e.ctrlKey ? 0.01 : 0.0015)), e.clientX, e.clientY);
+    }, { passive: false });
+    stage.addEventListener('dblclick', (e) => zoomTo(scale * 2, e.clientX, e.clientY));
+
+    // 拖动平移；两根手指捏合缩放，同时跟着两指中点走。
+    const pts = new Map();
+    let pinch = null;
+    const mid = () => { const [a, b] = [...pts.values()]; return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, d: Math.hypot(a.x - b.x, a.y - b.y) || 1 }; };
+    stage.addEventListener('pointerdown', (e) => {
+      if (e.button !== undefined && e.button > 0) return;
+      stage.setPointerCapture?.(e.pointerId);
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pts.size === 2) pinch = { ...mid(), s: scale };
+      box.classList.add('is-dragging');
+    });
+    stage.addEventListener('pointermove', (e) => {
+      const prev = pts.get(e.pointerId);
+      if (!prev) return;
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pts.size === 1) { pan(e.clientX - prev.x, e.clientY - prev.y); return; }
+      if (pts.size === 2 && pinch) {
+        const m = mid();
+        x += m.x - pinch.x; y += m.y - pinch.y;
+        pinch.x = m.x; pinch.y = m.y;
+        zoomTo(pinch.s * (m.d / pinch.d), m.x, m.y);
+      }
+    });
+    const lift = (e) => {
+      pts.delete(e.pointerId);
+      if (pts.size < 2) pinch = null;
+      if (!pts.size) box.classList.remove('is-dragging');
+    };
+    stage.addEventListener('pointerup', lift);
+    stage.addEventListener('pointercancel', lift);
+
+    const focusables = () => [...box.querySelectorAll('button:not([disabled])')];
+    const onKey = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); close(); return; }
+      if (e.key === 'Tab') {
+        const f = focusables();
+        if (!f.length) return;
+        const i = f.indexOf(document.activeElement);
+        if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
+        else if (!e.shiftKey && (i === -1 || i === f.length - 1)) { e.preventDefault(); f[0].focus(); }
+        return;
+      }
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const step = 48;
+      const act = { '+': () => zoomTo(scale * 1.25), '=': () => zoomTo(scale * 1.25), '-': () => zoomTo(scale / 1.25),
+        '_': () => zoomTo(scale / 1.25), '0': fit, ArrowLeft: () => pan(step, 0), ArrowRight: () => pan(-step, 0),
+        ArrowUp: () => pan(0, step), ArrowDown: () => pan(0, -step) }[e.key];
+      if (act) { e.preventDefault(); act(); }
+    };
+    const onResize = () => { if (fitted) fit(); };
+    const close = () => {
+      document.removeEventListener('keydown', onKey, true);
+      removeEventListener('resize', onResize);
+      document.documentElement.classList.remove('pw-dgv-locked');
+      box.remove();
+      dgvOpen = null;
+      opener?.focus?.({ preventScroll: true });
+    };
+    exit.addEventListener('click', close);
+
+    document.body.appendChild(box);
+    document.documentElement.classList.add('pw-dgv-locked');
+    document.addEventListener('keydown', onKey, true);
+    addEventListener('resize', onResize);
+    dgvOpen = box;
+    fit();
+    box.focus({ preventScroll: true });
+  }
+
   /* PAGEWELL_HOSTED_LIBRARY_LOADER_START */
   /* ---------------------------------------------------------------- 托管库
      ⚠️ 这张表必须与 render/lib.go 一致，而且**要一起改**。
      为什么不去取一份清单：那是一次额外的往返，而且它会在离线时失败 ——
      而离线时这一段本来就该安静地什么都不做（源码留在页面上，读者照样读得到）。
-     版本对不上的后果是取一个 404，然后走 catch —— 不是一次静默的错误渲染。 */
-  const LIBS = {
-    mermaid: '11.4.1',
-    katex: '0.16.11',
-    echarts: '5.5.1',
-    abcjs: '6.4.4',
+     文件名对不上的后果是取一个 404，然后走 catch —— 不是一次静默的错误渲染。 */
+  // 文件名既带上游版本，也带实际字节的哈希：同一个版本从 ESM 换成 UMD 时，CDN 不能
+  // 把旧入口配给新加载器。render/lib.go 的 File() 与 lib_test.go 盯着这张表。
+  const LIB_FILES = {
+    mermaid: 'mermaid@11.4.1-a43bc1afd446.js',
+    katex: 'katex@0.16.11-62b34a75067c.js',
+    echarts: 'echarts@5.5.1-e84270bd0cd5.js',
+    abcjs: 'abcjs@6.4.4-766fd4d46982.js',
   };
   // 需要一份样式表才成立的库。katex 的公式排版一半在 CSS 里 ——
   // 少了它公式会散架，而那种坏法看起来像「渲染失败」。
-  const LIB_STYLES = new Set(['katex']);
+  const LIB_STYLES = { katex: 'katex@0.16.11.css' };
   // 经典脚本（UMD / IIFE）：跑完把自己挂在 globalThis 的这个名字上。与 render/lib.go 的 Global
   // 一起改（lib_test.go 盯着）。它们用 <script> 装而不是当作模块动态引入 —— 一个 IIFE 被当成
   // module 跑，顶层的 var 是模块作用域的，globalThis 上什么都没有。
@@ -795,13 +1081,15 @@
   /* PAGEWELL_LIBRARY_SOURCE_START */
   const LIB_BASE = (root && root.dataset.libBase && root.dataset.libBase.startsWith('chrome-extension://'))
     ? root.dataset.libBase : '';
-  const PACKAGED_LIBRARIES = new Set(["mermaid@11.4.1","katex@0.16.11"]);
+  const PACKAGED_LIBRARIES = new Map([["mermaid","mermaid@11.4.1"],["katex","katex@0.16.11"]]);
   const packagedLibraries = globalThis.__pagewellPackagedLibraries ??= Object.create(null);
   const pendingLibraries = new Map();
-  const loadLibrary = (id, version) => {
-    const key = id + '@' + version;
-    if (!LIB_BASE || !PACKAGED_LIBRARIES.has(key)) {
-      return Promise.reject(new Error('library is not packaged: ' + key));
+  const loadLibrary = (id, file) => {
+    const key = PACKAGED_LIBRARIES.get(id);
+    const hash = key && file.startsWith(key + '-') && file.endsWith('.js')
+      ? file.slice(key.length + 1, -3) : '';
+    if (!LIB_BASE || !key || (file !== key + '.js' && !/^[0-9a-f]{12}$/.test(hash))) {
+      return Promise.reject(new Error('library is not packaged: ' + id + ' (' + file + ')'));
     }
     if (packagedLibraries[key]) return Promise.resolve(packagedLibraries[key]);
     if (pendingLibraries.has(key)) return pendingLibraries.get(key);
@@ -904,6 +1192,7 @@
           const { svg } = await m.render('pw-mmd-' + Date.now().toString(36) + '-' + (n++), src);
           output(fig).innerHTML = svg;
           fig.classList.add('is-ready');
+          diagramButton(fig);
         }
       };
       await draw();
@@ -944,19 +1233,19 @@
 
   const wanted = ((root && root.dataset.libs) || '').split(/\s+/).filter(Boolean);
   for (const id of wanted) {
-    const version = LIBS[id];
-    if (!version) continue;
+    const file = LIB_FILES[id];
+    if (!file) continue;
     // 页面上真的有这种块才去取：一份声明了 mermaid 却没画图的文档，
     // 不该让读者下载 2.5 MB。
     if (!libBlocks(id).length) continue;
-    if (LIB_BASE && LIB_STYLES.has(id) && !document.querySelector(`link[data-lib="${id}"]`)) {
+    if (LIB_BASE && LIB_STYLES[id] && !document.querySelector(`link[data-lib="${id}"]`)) {
       const link = document.createElement('link');
       link.rel = 'stylesheet';
-      link.href = `${LIB_BASE}${id}@${version}.css`;
+      link.href = `${LIB_BASE}${LIB_STYLES[id]}`;
       link.dataset.lib = id;
       document.head.appendChild(link);
     }
-    loadLibrary(id, version)
+    loadLibrary(id, file)
       .then((mod) => upgraders[id]?.(mod))
       .catch(() => failLib(id,
         `${id} could not load, so this block is shown as its source. The text above is the whole content.`));
