@@ -636,34 +636,51 @@ html.is-fullscreen .pw-frame { height: 100% !important; min-height: 0; }
   .pw-pager-t { white-space: normal; }
 }
 
-/* 页内目录（ReaderOutline 画板）：目录**挂在分栏线上** —— 宽屏下 aside 左边那根贯穿整栏的
-   1px 分栏线就是轨，条目从它右边 14px 起，当前一节是盖在这根线上的一段 2px 主色（条目往左
-   出 1px，正好压住它）。列表自己不再画第二根细轨：两根竖线并排 22px 看着像画错了。
-   编号（Heading.Num）排成等宽的一栏，文字换行时挂在编号右边而不是绕到它下面。
-   三级缩进 14、变暗；四级以下再缩 14。 */
+/* 页内目录（ReaderOutline 画板，2026-10-09 重画）。
+   - 不挂在分栏线上了：用户说栏左边那根贯穿整栏的竖线「不美观」。栏与正文之间只靠留白分开；
+     当前一节是一块浅主色的底（圆角），悬停是一块灰底 —— 不再是线上的一段 2px。
+   - 层级按**嵌套**缩进（Depth，render.Outline 算的），不按 h 几：以前只有 h3 起才缩进，
+     用 # 分章、## 分节的文档章和节排成同一层。有下级的目录里，一级条目用正文色、半粗，
+     组与组之间多留一口气；整份都是一级的目录就是平平一列，不加粗。
+   - 编号（Heading.Num）排成等宽的一栏，文字换行时挂在编号右边而不是绕到它下面。
+   - 读者可以收起它（默认展开）：标题行右边那枚按钮；收起后栏缩成一条，只留一枚展开按钮。
+     偏好记在本机（pw:prefs 的 outline），首帧之前由 PrefsScript 落到 <html data-outline> 上，刷新不闪。 */
 .pw-toc { display: none; }
-.pw-toc-h { margin: 0 0 12px; padding-inline-start: 14px; font-family: var(--mono); font-size: 10.5px;
+.pw-toc-head { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; padding-inline-start: 10px; }
+.pw-toc-h { flex-grow: 1; margin: 0; font-family: var(--mono); font-size: 10.5px;
   text-transform: uppercase; letter-spacing: .14em; color: var(--dim); }
+.pw-toc-toggle {
+  display: none; align-items: center; justify-content: center; flex: none;
+  inline-size: 28px; block-size: 28px; padding: 0; border: 1px solid transparent; border-radius: 6px;
+  background: none; color: var(--dim); cursor: pointer;
+}
+.pw-toc-toggle:hover { background: var(--muted); color: var(--fg); }
+.pw-toc-toggle:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); }
+.pw-toc-toggle .pw-i-show, html[data-outline="hidden"] .pw-toc-toggle .pw-i-hide { display: none; }
+html[data-outline="hidden"] .pw-toc-toggle .pw-i-show { display: block; }
 .pw-toc ol { list-style: none; margin: 0; padding: 0; }
 .pw-toc a {
   display: flex; gap: 8px; align-items: baseline;
-  margin-inline-start: -1px; padding: 5px 0 5px 13px; border-inline-start: 2px solid transparent;
+  padding: 5px 10px; border-radius: 6px;
   color: var(--body); text-decoration: none; font-size: 13px; line-height: 1.45;
 }
-.pw-toc a:hover { color: var(--fg); }
+.pw-toc a:hover { background: var(--muted); color: var(--fg); }
 /* 键盘焦点是一圈光晕（和插件 popup 的主按钮同一套）；鼠标点不出框 */
-.pw-toc a:focus-visible { outline: none; border-radius: 3px;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); }
-.pw-toc a.is-current { border-inline-start-color: var(--accent); color: var(--accent-dark); font-weight: 500; }
+.pw-toc a:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); }
 .pw-toc-n { flex: none; min-width: 2ch; font-family: var(--mono); font-size: 11px; font-weight: 400;
   font-variant-numeric: tabular-nums; color: var(--dim); }
-.pw-toc a.is-current .pw-toc-n { color: var(--accent); }
 .pw-toc-t { min-width: 0; }
-.pw-toc-l3 a { padding-inline-start: 27px; color: var(--dim); }
-.pw-toc-l4 a, .pw-toc-l5 a, .pw-toc-l6 a { padding-inline-start: 41px; color: var(--dim); }
+/* 层级：二级缩一格，三级再缩一格、小一号、变暗 */
+.pw-toc-d2 > a { padding-inline-start: 24px; }
+.pw-toc-d3 > a { padding-inline-start: 38px; font-size: 12.5px; color: var(--dim); }
+/* 有下级的目录：一级是一组的组名。:where 把这条的分量压到和下面「当前一节」一样，好让后者盖过它 */
+.pw-toc :where(ol:has(.pw-toc-d2)) .pw-toc-d1 > a { color: var(--fg); font-weight: 500; }
+.pw-toc :where(ol:has(.pw-toc-d2)) .pw-toc-d1:not(:first-child) { margin-top: 8px; }
 /* 有编号的目录里，下级条目对齐上级的文字（编号栏 2ch + 8 间距），不比上级的文字还靠左 */
-.pw-toc ol:has(.pw-toc-n) .pw-toc-l3 a { padding-inline-start: 34px; }
-.pw-toc ol:has(.pw-toc-n) :is(.pw-toc-l4, .pw-toc-l5, .pw-toc-l6) a { padding-inline-start: 48px; }
+.pw-toc ol:has(.pw-toc-n) .pw-toc-d2 > a { padding-inline-start: 32px; }
+.pw-toc ol:has(.pw-toc-n) .pw-toc-d3 > a { padding-inline-start: 46px; }
+.pw-toc a.is-current { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent-dark); }
+.pw-toc a.is-current .pw-toc-n { color: var(--accent); }
 /* 点目录（或带 #锚 打开）时标题停在顶栏下方 16px，不被顶栏盖住 */
 .pw-body :is(h1, h2, h3, h4, h5, h6) { scroll-margin-top: calc(var(--h-top) + 16px); }
 
@@ -756,19 +773,21 @@ html.is-fullscreen .pw-frame { height: 100% !important; min-height: 0; }
 }
 @media (min-width: 1240px) {
   .pw-shell { grid-template-columns: var(--w-nav) minmax(0, 1fr) var(--w-toc); }
-  /* 目录栏：一根贯穿整栏的分栏线，目录直接挂在它上面（ReaderWide / ReaderInline 画板）；
-     里面那层才是钉住的 —— 钉在 aside 自己身上的话它只有内容那么高，分栏线也只到那里。 */
-  .pw-toc {
-    display: block; align-self: stretch;
-    border-inline-start: 1px solid var(--line); padding: 0 var(--edge) 0 0;
-  }
-  /* 往左多留 2px 再补回来：钉住的这层会滚（overflow）就会裁掉出界的东西，而当前一节那段
-     2px 主色要往左压住分栏线 —— 让它落在这层的内边距里，而不是边界外。 */
+  /* 目录栏（ReaderOutline 画板）：没有分栏线，栏与正文之间只靠留白。里面那层才是钉住的 ——
+     钉在 aside 自己身上的话，它只有内容那么高。左右各留 4px：当前一节的底与焦点光晕是圆角的一块，
+     钉住的这层会滚（overflow）就会裁掉出界的东西。 */
+  .pw-toc { display: block; align-self: stretch; padding: 0 var(--edge) 0 0; }
   .pw-toc-in {
     position: sticky; top: var(--h-top);
     max-height: calc(100dvh - var(--h-top)); overflow-y: auto;
-    margin-inline-start: -2px; padding: 28px 0 28px 2px;
+    padding: 24px 4px 28px;
   }
+  .pw-toc:not(.is-sheet) .pw-toc-toggle { display: inline-flex; }
+  /* 收起：栏缩成一条，只留那枚按钮（换成「展开」的图标），描一圈边好让人认得出这是个开关 */
+  html[data-outline="hidden"] { --w-toc: calc(36px + var(--edge)); }
+  html[data-outline="hidden"] .pw-toc:not(.is-sheet) :is(.pw-toc-h, ol) { display: none; }
+  html[data-outline="hidden"] .pw-toc:not(.is-sheet) .pw-toc-head { padding: 0; }
+  html[data-outline="hidden"] .pw-toc:not(.is-sheet) .pw-toc-toggle { border-color: var(--line); background: var(--surface); }
 }
 
 /* ---- 手机上的两张抽屉（MobileNav 画板）----
@@ -817,7 +836,7 @@ html.is-fullscreen .pw-frame { height: 100% !important; min-height: 0; }
 .pw-nav.is-sheet .pw-tree-item.is-folder { margin-top: 2px; }
 .pw-toc.is-sheet ol { padding-inline-start: 8px; }
 .pw-toc.is-sheet a { min-height: 40px; padding-block: 9px; font-size: 14.5px; }
-.pw-toc.is-sheet .pw-toc-l3 a { font-size: 13.5px; }
+.pw-toc.is-sheet .pw-toc-d3 > a { font-size: 13.5px; }
 .pw-scrim.is-on {
   display: block; position: fixed; inset: 0; z-index: 39; background: rgba(16, 22, 20, .42);
 }

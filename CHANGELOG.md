@@ -2,6 +2,12 @@
 
 Every entry is a release: a tag here (the version in `manifest.json`) and a GitHub Release with the store zip.
 
+## v0.3.6 — 2026-10-09
+
+Signed-in uploads now follow the account plan default: Free creates a public page and Pro stays private. The extension explains the result and uses the public page address. The in-page outline now follows heading hierarchy and can be collapsed.
+
+Built from PageWell `61bdb59`. Upgrade: `git pull` and Reload, or download the release zip.
+
 ## v0.3.5 — 2026-10-09
 
 Mermaid diagrams in a rendered .md open full screen: zoom, drag, + − 0, arrow keys, Esc. A fenced ```mermaid block now draws without front matter — the same rule as the published page. Reading styles follow the site's second pass: sub-headings in the heading typeface, table columns sized by their content, a language label and a copy button on code blocks, callouts as tinted cards, drawn task-list boxes.

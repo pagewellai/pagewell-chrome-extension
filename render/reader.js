@@ -231,6 +231,46 @@
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && anyOpen()) closeAll(); });
   }
 
+  // ---- 目录收起 / 展开（ReaderOutline 画板）----
+  //
+  // 默认展开。收起是读者自己的偏好，和明暗同一类：记在本机 pw:prefs 的 outline 上，
+  // 首帧之前由 PrefsScript（render/prefs.go）落到 <html data-outline="hidden">，刷新不闪；
+  // 这里只管点按钮。样子全在 reader.css（收起时栏缩成一条、只留这枚按钮）。
+  // 文案读页面上第一个 data-l-toc-hide / -show：Chrome 插件在顶栏放了一份按界面语言译好的，
+  // 排在外壳（英文）那份前面；站点阅读页只有按钮自己那份。
+  const tocToggle = document.querySelector('.pw-toc-toggle');
+  if (tocToggle) {
+    const html = document.documentElement;
+    // 首帧脚本跑不了的宿主（插件页面的 CSP 不放行内联脚本）在这里补读一次：晚一帧收起，总比忘了强
+    try {
+      if (!html.dataset.outline && JSON.parse(localStorage.getItem('pw:prefs') || '{}').outline === 'hidden') html.dataset.outline = 'hidden';
+    } catch { /* 读不出偏好就照默认展开 */ }
+    const label = (key, fallback) => {
+      const holder = document.querySelector(`[data-l-${key}]`);
+      return (holder && holder.getAttribute(`data-l-${key}`)) || fallback;
+    };
+    const sync = () => {
+      const hidden = html.dataset.outline === 'hidden';
+      const text = hidden ? label('toc-show', 'Show outline') : label('toc-hide', 'Hide outline');
+      tocToggle.setAttribute('aria-expanded', String(!hidden));
+      tocToggle.setAttribute('aria-label', text);
+      tocToggle.title = text;
+    };
+    tocToggle.addEventListener('click', () => {
+      const hide = html.dataset.outline !== 'hidden';
+      if (hide) html.dataset.outline = 'hidden';
+      else delete html.dataset.outline;
+      try {
+        const prefs = JSON.parse(localStorage.getItem('pw:prefs') || '{}');
+        if (hide) prefs.outline = 'hidden';
+        else delete prefs.outline;
+        localStorage.setItem('pw:prefs', JSON.stringify(prefs));
+      } catch { /* 无痕模式、file://：这一页照样收起，只是不记住 */ }
+      sync();
+    });
+    sync();
+  }
+
   // ---- 页内目录（ReaderOutline 画板） ----
   //
   // 标题的位置有两个来源：正文就在这页上时直接量 DOM；沙箱文档的标题在跨源 iframe 里，
